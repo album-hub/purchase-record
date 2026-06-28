@@ -306,3 +306,210 @@ button {
 .backup-actions button {
   flex: 1;
 }
+
+.suggestion-box {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  margin-top: 6px;
+  overflow: hidden;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.suggestion-item {
+  padding: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.suggestion-item:first-child {
+  border-top: none;
+}
+
+.suggestion-item:active {
+  background: #f2f2f7;
+}
+
+.suggestion-primary {
+  font-weight: 900;
+}
+
+.suggestion-secondary {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.selected-hint {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #e5f1ff;
+  color: #007aff;
+  font-size: 14px;
+}
+
+.group-card {
+  background: white;
+  border-radius: 18px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.group-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.group-title {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.group-summary {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.group-body {
+  padding: 14px;
+}
+
+.group-toggle {
+  background: transparent;
+  color: var(--blue);
+  padding: 6px 0 0;
+  text-align: left;
+}
+
+.compact-order-card {
+  box-shadow: none;
+  border: 1px solid var(--line);
+  margin-bottom: 10px;
+}
+
+.filter-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.filter-btn {
+  background: #e9e9ef;
+  color: #333;
+  padding: 9px;
+}
+
+.filter-btn.active {
+  background: var(--blue);
+  color: white;
+}
+
+.buyer-mini-list {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+  padding-top: 10px;
+}
+
+.buyer-mini-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid #f0f0f2;
+}
+
+.buyer-mini-item:first-child {
+  border-top: none;
+}
+
+.buyer-mini-name {
+  font-weight: 800;
+}
+
+.clickable-badge {
+  cursor: pointer;
+}
+
+.buyer-group-card {
+  background: white;
+  border-radius: 18px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.buyer-group-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.buyer-group-title {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.buyer-group-summary {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.buyer-group-body {
+  padding: 14px;
+}
+
+.buyer-group-toggle {
+  background: transparent;
+  color: var(--blue);
+  padding: 6px 0 0;
+  text-align: left;
+}
+
+.compact-buyer-order {
+  box-shadow: none;
+  border: 1px solid var(--line);
+  margin-bottom: 10px;
+}
+
+.money-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.money-grid div {
+  background: #f7f7f9;
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.money-grid strong {
+  display: block;
+  font-size: 24px;
+  color: var(--blue);
+}
+
+.money-grid p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.timeline-item {
+  border-left: 4px solid var(--blue);
+  padding: 10px 0 10px 12px;
+  margin: 8px 0;
+}
+
+.timeline-date {
+  font-weight: 900;
+  color: var(--blue);
+}
+
+.amount-badge {
+  background: #f1ecff;
+  color: #5b2bd6;
+}
