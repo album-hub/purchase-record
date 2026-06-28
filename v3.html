@@ -21,11 +21,27 @@
       <button class="primary-btn" onclick="openBuyerOrderForm()">＋ 新增購買人訂單</button>
     </div>
 
-    <div class="grid">
+    <div class="grid dashboard-grid">
       <div class="stat-card"><span id="statOrders">0</span><p>購買人訂單</p></div>
       <div class="stat-card"><span id="statUnpaid">0</span><p>未付款</p></div>
-      <div class="stat-card"><span id="statChannelOrders">0</span><p>通路訂單</p></div>
+      <div class="stat-card"><span id="statNotOrdered">0</span><p>未下單</p></div>
       <div class="stat-card"><span id="statNotArrived">0</span><p>未到貨</p></div>
+      <div class="stat-card"><span id="statTodayFansign">0</span><p>今天簽售</p></div>
+      <div class="stat-card"><span id="statMonthFansign">0</span><p>本月簽售</p></div>
+    </div>
+
+    <div class="card">
+      <h2>金額統計</h2>
+      <div class="money-grid">
+        <div>
+          <strong id="statTotalAmount">$0</strong>
+          <p>總金額</p>
+        </div>
+        <div>
+          <strong id="statUnpaidAmount">$0</strong>
+          <p>未付款金額</p>
+        </div>
+      </div>
     </div>
 
     <div class="card">
@@ -46,6 +62,10 @@
       <input id="channelOrderSearch" class="search-input" placeholder="搜尋藝人 / 通路 / 批次" oninput="renderChannelOrders()" />
     </div>
     <div id="channelOrderList"></div>
+    <div class="card">
+      <h2>通路時間軸</h2>
+      <div id="channelTimeline"></div>
+    </div>
   </section>
 
   <section id="page-buyer-orders" class="page">
@@ -53,6 +73,11 @@
       <h2>購買人訂單</h2>
       <button class="primary-btn" onclick="openBuyerOrderForm()">＋ 新增購買人訂單</button>
       <input id="buyerOrderSearch" class="search-input" placeholder="搜尋購買人 / 藝人 / 通路" oninput="renderBuyerOrders()" />
+      <div class="filter-row">
+        <button id="buyerFilterAll" class="filter-btn active" onclick="setBuyerOrderFilter('all')">全部</button>
+        <button id="buyerFilterUnpaid" class="filter-btn" onclick="setBuyerOrderFilter('unpaid')">未付款</button>
+        <button id="buyerFilterPaid" class="filter-btn" onclick="setBuyerOrderFilter('paid')">已付款</button>
+      </div>
     </div>
     <div id="buyerOrderList"></div>
   </section>
