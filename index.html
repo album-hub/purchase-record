@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>購買紀錄表</title>
+  <style>
+    body {
+      font-family: Arial, "Microsoft JhengHei", sans-serif;
+      background: #f5f5f5;
+      padding: 16px;
+    }
+
+    .box {
+      max-width: 900px;
+      margin: auto;
+      background: white;
+      padding: 18px;
+      border-radius: 14px;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    input, select, button {
+      width: 100%;
+      padding: 11px;
+      margin: 6px 0;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+
+    button {
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .addBtn {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .paidBtn {
+      background: #2196F3;
+      color: white;
+    }
+
+    .unpaidBtn {
+      background: #999;
+      color: white;
+    }
+
+    .editBtn {
+      background: #ff9800;
+      color: white;
+      margin-bottom: 4px;
+    }
+
+    .deleteBtn {
+      background: #f44336;
+      color: white;
+    }
+
+    .toggleBtn {
+      background: #673ab7;
+      color: white;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 18px;
+      background: white;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+
+    th {
+      background: #eee;
+    }
+
+    .nameRow {
+      background: #f0f0f0;
+      font-weight: bold;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <h1>購買紀錄表</h1>
+
+  <input type="text" id="searchName" placeholder="搜尋購買人姓名" oninput="renderTable()">
+
+  <hr>
+
+  <input type="text" id="buyerName" placeholder="購買人姓名">
+
+  <select id="artistName">
+    <option value="">請選擇藝人</option>
+    <option value="Yuju">Yuju</option>
+    <option value="Yerin">Yerin</option>
+    <option value="GFRIEND">GFRIEND</option>
+    <option value="其他藝人">其他藝人</option>
+  </select>
+
+  <input type="text" id="channelName" placeholder="購買通路名稱">
+
+  <input type="number" id="quantity" placeholder="購買數量" min="1">
+
+  <button id="paidButton" class="unpaidBtn" onclick="togglePaid()">未付款</button>
+
+  <button id="submitButton" class="addBtn" onclick="addOrUpdateRecord()">新增紀錄</button>
+
+  <table>
+    <thead>
+      <tr>
+        <th>購買人</th>
+        <th>藝人</th>
+        <th>通路</th>
+        <th>數量</th>
+        <th>付款</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody id="recordTable"></tbody>
+  </table>
+</div>
+
+<script>
+  let records = JSON.parse(localStorage.getItem("purchaseRecords")) || [];
+  let isPaid = false;
+  let editIndex = null;
+  let collapsedNames = JSON.parse(localStorage.getItem("collapsedNames")) || {};
+
+  function saveRecords() {
+    localStorage.setItem("purchaseRecords", JSON.stringify(records));
+  }
+
+  function saveCollapsed() {
+    localStorage.setItem("collapsedNames", JSON.stringify(collapsedNames));
+  }
+
+  function togglePaid() {
+    isPaid = !isPaid;
+    updatePaidButton();
+  }
+
+  function updatePaidButton() {
+    const btn = document.getElementById("paidButton");
+
+    if (isPaid) {
+      btn.textContent = "已付款";
+      btn.className = "paidBtn";
+    } else {
+      btn.textContent = "未付款";
+      btn.className = "unpaidBtn";
+    }
+  }
+
+  function addOrUpdateRecord() {
+    const buyerName = document.getElementById("buyerName").value.trim();
+    const artistName = document.getElementById("artistName").value;
+    const channelName = document.getElementById("channelName").value.trim();
+    const quantity = document.getElementById("quantity").value;
+
+    if (!buyerName || !artistName || !channelName || !quantity) {
+      alert("請把資料填完整");
+      return;
+    }
+
+    const record = {
+      buyerName,
+      artistName,
+      channelName,
+      quantity,
+      paid: isPaid
+    };
+
+    if (editIndex === null) {
+      records.push(record);
+    } else {
+      records[editIndex] = record;
+      editIndex = null;
+      document.getElementById("submitButton").textContent = "新增紀錄";
+    }
+
+    saveRecords();
+    clearForm();
+    renderTable();
+  }
+
+  function clearForm() {
+    document.getElementById("buyerName").value = "";
+    document.getElementById("artistName").value = "";
+    document.getElementById("channelName").value = "";
+    document.getElementById("quantity").value = "";
+    isPaid = false;
+    updatePaidButton();
+  }
+
+  function editRecord(index) {
+    const record = records[index];
+
+    document.getElementById("buyerName").value = record.buyerName;
+    document.getElementById("artistName").value = record.artistName;
+    document.getElementById("channelName").value = record.channelName;
+    document.getElementById("quantity").value = record.quantity;
+
+    isPaid = record.paid;
+    updatePaidButton();
+
+    editIndex = index;
+    document.getElementById("submitButton").textContent = "儲存修改";
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function deleteRecord(index) {
+    if (confirm("確定要刪除這筆資料嗎？")) {
+      records.splice(index, 1);
+      saveRecords();
+      renderTable();
+    }
+  }
+
+  function toggleCollapse(name) {
+    collapsedNames[name] = !collapsedNames[name];
+    saveCollapsed();
+    renderTable();
+  }
+
+  function renderTable() {
+    const table = document.getElementById("recordTable");
+    const searchText = document.getElementById("searchName").value.trim();
+    table.innerHTML = "";
+
+    const grouped = {};
+
+    records.forEach((record, index) => {
+      if (searchText && !record.buyerName.includes(searchText)) {
+        return;
+      }
+
+      if (!grouped[record.buyerName]) {
+        grouped[record.buyerName] = [];
+      }
+
+      grouped[record.buyerName].push({
+        ...record,
+        originalIndex: index
+      });
+    });
+
+    Object.keys(grouped).forEach(name => {
+      const orders = grouped[name];
+      const totalQuantity = orders.reduce((sum, item) => sum + Number(item.quantity), 0);
+      const isCollapsed = collapsedNames[name];
+
+      const nameRow = document.createElement("tr");
+      nameRow.className = "nameRow";
+
+      nameRow.innerHTML = `
+        <td>${name}</td>
+        <td colspan="3">共 ${orders.length} 筆訂單｜總數量 ${totalQuantity}</td>
+        <td colspan="2">
+          <button class="toggleBtn" onclick="toggleCollapse('${name}')">
+            ${isCollapsed ? "展開" : "收合"}
+          </button>
+        </td>
+      `;
+
+      table.appendChild(nameRow);
+
+      if (!isCollapsed) {
+        orders.forEach(record => {
+          const row = document.createElement("tr");
+
+          row.innerHTML = `
+            <td></td>
+            <td>${record.artistName}</td>
+            <td>${record.channelName}</td>
+            <td>${record.quantity}</td>
+            <td>${record.paid ? "已付款" : "未付款"}</td>
+            <td>
+              <button class="editBtn" onclick="editRecord(${record.originalIndex})">編輯</button>
+              <button class="deleteBtn" onclick="deleteRecord(${record.originalIndex})">刪除</button>
+            </td>
+          `;
+
+          table.appendChild(row);
+        });
+      }
+    });
+  }
+
+  renderTable();
+</script>
+
+</body>
+</html>
