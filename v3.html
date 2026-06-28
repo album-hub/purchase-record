@@ -1,34 +1,153 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fansign Manager</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <header class="app-header">
-    <h1>Fansign Manager</h1>
-    <p>簽售代購管理系統</p>
-  </header>
+<header class="app-header">
+  <h1>Fansign Manager</h1>
+  <p>簽售代購管理系統</p>
+</header>
 
-  <main class="app-main">
-    <section class="card">
+<main class="app-main">
+
+  <section id="page-home" class="page active">
+    <div class="card">
       <h2>首頁</h2>
-      <p>這裡是 Fansign Manager 1.0 的測試首頁。</p>
-      <button class="primary-btn">＋ 新增購買人訂單</button>
-    </section>
-  </main>
+      <button class="primary-btn" onclick="openBuyerOrderForm()">
+        ＋ 新增購買人訂單
+      </button>
+    </div>
 
-  <nav class="bottom-nav">
-    <button>🏠<br>首頁</button>
-    <button>📦<br>通路</button>
-    <button>👤<br>購買人</button>
-    <button>🔍<br>搜尋</button>
-    <button>⚙️<br>設定</button>
-  </nav>
+    <div class="grid">
+      <div class="stat-card">
+        <span id="statBuyers">0</span>
+        <p>購買人</p>
+      </div>
+      <div class="stat-card">
+        <span id="statOrders">0</span>
+        <p>訂單</p>
+      </div>
+      <div class="stat-card">
+        <span id="statUnpaid">0</span>
+        <p>未付款</p>
+      </div>
+      <div class="stat-card">
+        <span id="statChannelOrders">0</span>
+        <p>通路訂單</p>
+      </div>
+    </div>
 
-  <script src="app.js"></script>
+    <div class="card">
+      <h2>快速提醒</h2>
+      <div id="homeAlerts"></div>
+    </div>
+  </section>
+
+  <section id="page-channel-orders" class="page">
+    <div class="card">
+      <h2>通路訂單</h2>
+      <button class="primary-btn" onclick="openChannelOrderForm()">
+        ＋ 新增通路訂單
+      </button>
+    </div>
+    <div id="channelOrderList"></div>
+  </section>
+
+  <section id="page-buyer-orders" class="page">
+    <div class="card">
+      <h2>購買人訂單</h2>
+      <button class="primary-btn" onclick="openBuyerOrderForm()">
+        ＋ 新增購買人訂單
+      </button>
+      <input id="buyerOrderSearch" class="search-input" placeholder="搜尋購買人 / 藝人 / 通路" oninput="renderBuyerOrders()" />
+    </div>
+    <div id="buyerOrderList"></div>
+  </section>
+
+  <section id="page-search" class="page">
+    <div class="card">
+      <h2>搜尋</h2>
+      <input id="globalSearch" class="search-input" placeholder="搜尋購買人、藝人、通路、批次" oninput="renderSearch()" />
+    </div>
+    <div id="searchResults"></div>
+  </section>
+
+  <section id="page-settings" class="page">
+    <div class="card">
+      <h2>設定</h2>
+      <p class="muted">管理會重複使用的資料。</p>
+    </div>
+
+    <div class="card">
+      <h3>🎤 藝人管理</h3>
+      <div class="row">
+        <input id="artistInput" placeholder="新增藝人，例如 Yuju" />
+        <button onclick="addMaster('artists','artistInput')">新增</button>
+      </div>
+      <div id="artistList"></div>
+    </div>
+
+    <div class="card">
+      <h3>🏪 通路管理</h3>
+      <div class="row">
+        <input id="channelInput" placeholder="新增通路，例如 Soundwave" />
+        <button onclick="addMaster('channels','channelInput')">新增</button>
+      </div>
+      <div id="channelList"></div>
+    </div>
+
+    <div class="card">
+      <h3>💿 專輯類型管理</h3>
+      <div class="row">
+        <input id="albumTypeInput" placeholder="新增類型，例如 線上" />
+        <button onclick="addMaster('albumTypes','albumTypeInput')">新增</button>
+      </div>
+      <div id="albumTypeList"></div>
+    </div>
+
+    <div class="card">
+      <h3>👤 購買人管理</h3>
+      <div class="row">
+        <input id="buyerInput" placeholder="新增購買人，例如 小明" />
+        <button onclick="addMaster('buyers','buyerInput')">新增</button>
+      </div>
+      <div id="buyerList"></div>
+    </div>
+
+    <div class="card">
+      <h3>💾 備份 / 還原</h3>
+      <button class="secondary-btn" onclick="exportBackup()">產生備份</button>
+      <textarea id="backupBox" placeholder="備份內容會出現在這裡，也可以貼上備份資料"></textarea>
+      <button class="primary-btn" onclick="importBackup()">還原備份</button>
+      <button class="danger-btn" onclick="clearAll()">清空全部資料</button>
+    </div>
+  </section>
+
+</main>
+
+<nav class="bottom-nav">
+  <button class="active" onclick="switchPage('home', this)">🏠<br>首頁</button>
+  <button onclick="switchPage('channel-orders', this)">📦<br>通路</button>
+  <button onclick="switchPage('buyer-orders', this)">👤<br>訂單</button>
+  <button onclick="switchPage('search', this)">🔍<br>搜尋</button>
+  <button onclick="switchPage('settings', this)">⚙️<br>設定</button>
+</nav>
+
+<div id="modal" class="modal hidden">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2 id="modalTitle">新增</h2>
+      <button class="icon-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>
