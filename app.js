@@ -1,6 +1,8 @@
-// Fansign Manager v3.1
+// Fansign Manager v3.2
 
 const STORAGE_KEY = "fansign_manager_v3";
+const BACKUP_KEY = "fansign_manager_v3_backups";
+let isRestoringBackup = false;
 
 function now() {
   return new Date().toISOString();
@@ -46,6 +48,75 @@ function loadData() {
 
 function saveData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+
+  if (!isRestoringBackup) {
+    createAutoBackup();
+  }
+}
+
+function getAutoBackups() {
+  try {
+    return JSON.parse(localStorage.getItem(BACKUP_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
+
+function createAutoBackup() {
+  const backups = getAutoBackups();
+
+  const latest = backups[0];
+  const currentData = JSON.stringify(db);
+
+  if (latest && latest.data === currentData) {
+    return;
+  }
+
+  backups.unshift({
+    id: uid("backup"),
+    time: new Date().toLocaleString(),
+    data: currentData
+  });
+
+  localStorage.setItem(BACKUP_KEY, JSON.stringify(backups.slice(0, 10)));
+}
+
+function restoreAutoBackup(id) {
+  const backups = getAutoBackups();
+  const backup = backups.find(item => item.id === id);
+
+  if (!backup) {
+    alert("找不到這份備份");
+    return;
+  }
+
+  if (!confirm(`確定還原這份備份嗎？
+${backup.time}`)) {
+    return;
+  }
+
+  try {
+    isRestoringBackup = true;
+    db = {
+      ...structuredClone(defaultData),
+      ...JSON.parse(backup.data)
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    isRestoringBackup = false;
+    renderAll();
+    alert("已還原備份");
+  } catch {
+    isRestoringBackup = false;
+    alert("還原失敗");
+  }
+}
+
+function deleteAutoBackup(id) {
+  if (!confirm("確定刪除這份自動備份嗎？")) return;
+
+  const backups = getAutoBackups().filter(item => item.id !== id);
+  localStorage.setItem(BACKUP_KEY, JSON.stringify(backups));
+  renderAutoBackups();
 }
 
 function byId(collection, id) {
@@ -370,7 +441,7 @@ function openBuyerOrderForm(editId = "") {
   openModal(editId ? "編輯購買人訂單" : "新增購買人訂單", `
     <div class="form-field">
       <label>購買人</label>
-      <input id="boBuyerSearch" list="buyerOptions" placeholder="輸入或選擇購買人" value="${escapeAttr(buyerName)}">
+      <input id="boBuyerSearch" list="buyerOptions" placeholder="輸入或選擇購買人" value="${escapeAttr(buyerName)}"><p class="muted">輸入姓名時可用關鍵字搜尋，找不到會自動新增。</p>
       <datalist id="buyerOptions">
         ${db.buyers.map(b => `<option value="${escapeAttr(b.name)}"></option>`).join("")}
       </datalist>
@@ -593,6 +664,28 @@ function renderSearch() {
   `;
 }
 
+function renderAutoBackups() {
+  const box = document.getElementById("autoBackupList");
+  if (!box) return;
+
+  const backups = getAutoBackups();
+
+  if (backups.length === 0) {
+    box.innerHTML = `<p class="muted">目前還沒有自動備份</p>`;
+    return;
+  }
+
+  box.innerHTML = backups.map(item => `
+    <div class="backup-item">
+      <div class="backup-time">${escapeHtml(item.time)}</div>
+      <div class="backup-actions">
+        <button class="secondary-btn" onclick="restoreAutoBackup('${item.id}')">還原</button>
+        <button class="danger-btn" onclick="deleteAutoBackup('${item.id}')">刪除</button>
+      </div>
+    </div>
+  `).join("");
+}
+
 function exportBackup() {
   document.getElementById("backupBox").value = JSON.stringify(db, null, 2);
   alert("備份已產生，請複製保存。");
@@ -602,8 +695,10 @@ function importBackup() {
   try {
     const raw = document.getElementById("backupBox").value.trim();
     if (!raw) return alert("請貼上備份資料");
+    isRestoringBackup = true;
     db = { ...structuredClone(defaultData), ...JSON.parse(raw) };
-    saveData();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    isRestoringBackup = false;
     renderAll();
     alert("還原成功");
   } catch (error) {
@@ -613,8 +708,10 @@ function importBackup() {
 
 function clearAll() {
   if (!confirm("確定清空全部資料嗎？這不能復原。")) return;
+  isRestoringBackup = true;
   db = structuredClone(defaultData);
-  saveData();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  isRestoringBackup = false;
   renderAll();
 }
 
