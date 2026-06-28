@@ -1,7 +1,9 @@
-// Fansign Manager v3.2
+// Fansign Manager v3.9
 
 const STORAGE_KEY = "fansign_manager_v3";
 const BACKUP_KEY = "fansign_manager_v3_backups";
+const GROUP_COLLAPSE_KEY = "fansign_manager_v3_group_collapse";
+const BUYER_GROUP_COLLAPSE_KEY = "fansign_manager_v3_buyer_group_collapse";
 let isRestoringBackup = false;
 
 function now() {
@@ -34,6 +36,7 @@ const defaultData = {
 };
 
 let db = loadData();
+let buyerOrderFilter = "all";
 
 function loadData() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -138,8 +141,21 @@ function escapeHtml(text) {
   }[s]));
 }
 
+function money(value) {
+  const num = Number(value || 0);
+  return "$" + num.toLocaleString();
+}
+
 function escapeAttr(text) {
   return escapeHtml(text).replace(/`/g, "&#96;");
+}
+
+function jsString(text) {
+  return String(text ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, "\\n")
+    .replace(/\r/g, "");
 }
 
 function switchPage(page, btn) {
@@ -377,6 +393,97 @@ function statusClass(status) {
   return "gray";
 }
 
+function getCollapsedGroups() {
+  try {
+    return JSON.parse(localStorage.getItem(GROUP_COLLAPSE_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveCollapsedGroups(data) {
+  localStorage.setItem(GROUP_COLLAPSE_KEY, JSON.stringify(data));
+}
+
+function groupKey(artistId, channelId) {
+  return `${artistId}||${channelId}`;
+}
+
+function toggleChannelGroup(key) {
+  const collapsed = getCollapsedGroups();
+  collapsed[key] = !collapsed[key];
+  saveCollapsedGroups(collapsed);
+  renderChannelOrders();
+}
+
+function buyerOrdersForChannel(channelOrderId) {
+  return db.buyerOrders.filter(order => order.channelOrderId === channelOrderId);
+}
+
+function renderBuyerMiniList(channelOrderId) {
+  const orders = buyerOrdersForChannel(channelOrderId);
+
+  if (orders.length === 0) {
+    return `<div class="buyer-mini-list"><p class="muted">尚無購買人登記</p></div>`;
+  }
+
+  const sorted = [...orders].sort((a, b) => {
+    if (a.paid !== b.paid) return a.paid ? 1 : -1;
+    return nameOf("buyers", a.buyerId).localeCompare(nameOf("buyers", b.buyerId));
+  });
+
+  return `
+    <div class="buyer-mini-list">
+      <strong>購買人名單</strong>
+      ${sorted.map(order => `
+        <div class="buyer-mini-item">
+          <div class="buyer-mini-name">${escapeHtml(nameOf("buyers", order.buyerId))}</div>
+          <div>${order.qty} 張</div>
+          <button class="pay-toggle ${order.paid ? "primary-btn" : "danger-btn"}" onclick="togglePaid('${order.id}')">
+            ${order.paid ? "✅" : "❌"}
+          </button>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderSingleChannelOrderCard(order, compact = false) {
+  const info = channelOrderShort(order);
+  const used = registeredQty(order.id);
+  const remain = order.totalQty - used;
+
+  return `
+    <div class="order-card ${compact ? "compact-order-card" : ""}">
+      <div class="order-title">📦 ${escapeHtml(info.batch)}</div>
+      <div class="order-subtitle">
+        💿 ${escapeHtml(info.type)}<br>
+        📅 ${escapeHtml(info.date)} ${escapeHtml(info.time)}
+      </div>
+
+      <button class="status-toggle ${statusClass(order.status)}-btn" onclick="cycleChannelStatus('${order.id}')">
+        ${escapeHtml(order.status)}
+      </button>
+
+      <div class="stats-row">
+        <div class="mini-stat"><strong>${order.totalQty}</strong><span>總下單</span></div>
+        <div class="mini-stat"><strong>${used}</strong><span>已登記</span></div>
+        <div class="mini-stat"><strong>${remain}</strong><span>剩餘</span></div>
+      </div>
+
+      ${remain < 0 ? `<p class="warning">⚠️ 登記數量已超過總下單數</p>` : ""}
+      ${order.note ? `<p class="muted">備註：${escapeHtml(order.note)}</p>` : ""}
+
+      ${renderBuyerMiniList(order.id)}
+
+      <div class="button-row">
+        <button class="secondary-btn" onclick="openChannelOrderForm('${order.id}')">編輯</button>
+        <button class="danger-btn" onclick="deleteChannelOrder('${order.id}')">刪除</button>
+      </div>
+    </div>
+  `;
+}
+
 function renderChannelOrders() {
   const box = document.getElementById("channelOrderList");
   const q = document.getElementById("channelOrderSearch")?.value.trim() || "";
@@ -393,36 +500,65 @@ function renderChannelOrders() {
     return;
   }
 
+  if (q) {
+    box.innerHTML = filtered.map(order => {
+      const info = channelOrderShort(order);
+      return `
+        <div class="order-card">
+          <div class="order-title">🎤 ${escapeHtml(info.artist)}</div>
+          <div class="order-subtitle">
+            🏪 ${escapeHtml(info.channel)}<br>
+            💿 ${escapeHtml(info.type)}｜📦 ${escapeHtml(info.batch)}<br>
+            📅 ${escapeHtml(info.date)} ${escapeHtml(info.time)}
+          </div>
+          ${renderSingleChannelOrderCard(order, true)}
+        </div>
+      `;
+    }).join("");
+    return;
+  }
+
+  const groups = {};
   filtered.forEach(order => {
-    const info = channelOrderShort(order);
-    const used = registeredQty(order.id);
-    const remain = order.totalQty - used;
+    const key = groupKey(order.artistId, order.channelId);
+    if (!groups[key]) {
+      groups[key] = {
+        artistId: order.artistId,
+        channelId: order.channelId,
+        orders: []
+      };
+    }
+    groups[key].orders.push(order);
+  });
+
+  const collapsed = getCollapsedGroups();
+
+  Object.keys(groups).forEach(key => {
+    const group = groups[key];
+    const orders = group.orders.sort((a, b) => {
+      const ad = `${a.fansignDate || ""} ${a.fansignTime || ""} ${a.batch || ""}`;
+      const bd = `${b.fansignDate || ""} ${b.fansignTime || ""} ${b.batch || ""}`;
+      return ad.localeCompare(bd);
+    });
+
+    const totalQty = orders.reduce((sum, o) => sum + Number(o.totalQty), 0);
+    const registered = orders.reduce((sum, o) => sum + registeredQty(o.id), 0);
+    const remain = totalQty - registered;
+    const isCollapsed = collapsed[key];
 
     box.innerHTML += `
-      <div class="order-card">
-        <div class="order-title">🎤 ${escapeHtml(info.artist)}</div>
-        <div class="order-subtitle">
-          🏪 ${escapeHtml(info.channel)}<br>
-          💿 ${escapeHtml(info.type)}｜📦 ${escapeHtml(info.batch)}<br>
-          📅 ${escapeHtml(info.date)} ${escapeHtml(info.time)}
+      <div class="group-card">
+        <div class="group-header">
+          <div class="group-title">🎤 ${escapeHtml(nameOf("artists", group.artistId))}｜🏪 ${escapeHtml(nameOf("channels", group.channelId))}</div>
+          <div class="group-summary">
+            ${orders.length} 批｜總下單 ${totalQty}｜已登記 ${registered}｜剩餘 ${remain}
+          </div>
+          <button class="group-toggle" onclick="toggleChannelGroup('${key}')">
+            ${isCollapsed ? "▶ 展開批次" : "▼ 收合批次"}
+          </button>
         </div>
-
-        <button class="status-toggle ${statusClass(order.status)}-btn" onclick="cycleChannelStatus('${order.id}')">
-          ${escapeHtml(order.status)}
-        </button>
-
-        <div class="stats-row">
-          <div class="mini-stat"><strong>${order.totalQty}</strong><span>總下單</span></div>
-          <div class="mini-stat"><strong>${used}</strong><span>已登記</span></div>
-          <div class="mini-stat"><strong>${remain}</strong><span>剩餘</span></div>
-        </div>
-
-        ${remain < 0 ? `<p class="warning">⚠️ 登記數量已超過總下單數</p>` : ""}
-        ${order.note ? `<p class="muted">備註：${escapeHtml(order.note)}</p>` : ""}
-
-        <div class="button-row">
-          <button class="secondary-btn" onclick="openChannelOrderForm('${order.id}')">編輯</button>
-          <button class="danger-btn" onclick="deleteChannelOrder('${order.id}')">刪除</button>
+        <div class="group-body" style="${isCollapsed ? "display:none;" : ""}">
+          ${orders.map(order => renderSingleChannelOrderCard(order, true)).join("")}
         </div>
       </div>
     `;
@@ -437,30 +573,32 @@ function openBuyerOrderForm(editId = "") {
 
   const order = db.buyerOrders.find(o => o.id === editId) || {};
   const buyerName = order.buyerId ? nameOf("buyers", order.buyerId) : "";
+  const selectedChannelOrder = order.channelOrderId ? byId("channelOrders", order.channelOrderId) : db.channelOrders[0];
 
   openModal(editId ? "編輯購買人訂單" : "新增購買人訂單", `
     <div class="form-field">
       <label>購買人</label>
-      <input id="boBuyerSearch" list="buyerOptions" placeholder="輸入或選擇購買人" value="${escapeAttr(buyerName)}"><p class="muted">輸入姓名時可用關鍵字搜尋，找不到會自動新增。</p>
-      <datalist id="buyerOptions">
-        ${db.buyers.map(b => `<option value="${escapeAttr(b.name)}"></option>`).join("")}
-      </datalist>
+      <input id="boBuyerSearch" placeholder="輸入購買人姓名，例如 李" value="${escapeAttr(buyerName)}" oninput="renderBuyerSuggestions()" onfocus="renderBuyerSuggestions()">
+      <div id="buyerSuggestionBox" class="suggestion-box"></div>
+      <p class="muted">輸入關鍵字會即時篩選；找不到會自動新增。</p>
     </div>
 
     <div class="form-field">
       <label>對應通路訂單</label>
-      <select id="boChannelOrder">
-        ${db.channelOrders.map(co => `
-          <option value="${co.id}" ${co.id === order.channelOrderId ? "selected" : ""}>
-            ${escapeHtml(channelOrderLabel(co))}
-          </option>
-        `).join("")}
-      </select>
+      <input id="boChannelSearch" placeholder="搜尋藝人 / 通路 / 批次" value="${escapeAttr(selectedChannelOrder ? channelOrderLabel(selectedChannelOrder) : "")}" oninput="renderChannelOrderSuggestions()" onfocus="renderChannelOrderSuggestions()">
+      <input type="hidden" id="boChannelOrderId" value="${selectedChannelOrder ? selectedChannelOrder.id : ""}">
+      <div id="channelOrderSuggestionBox" class="suggestion-box"></div>
+      <div id="selectedChannelHint" class="selected-hint">${selectedChannelOrder ? escapeHtml(channelOrderLabel(selectedChannelOrder)) : "尚未選擇通路訂單"}</div>
     </div>
 
     <div class="form-field">
       <label>數量</label>
       <input id="boQty" type="number" min="1" value="${order.qty ?? ""}" placeholder="例如 2">
+    </div>
+
+    <div class="form-field">
+      <label>金額</label>
+      <input id="boAmount" type="number" min="0" value="${order.amount ?? ""}" placeholder="可不填，例如 1500">
     </div>
 
     <div class="form-field">
@@ -478,6 +616,85 @@ function openBuyerOrderForm(editId = "") {
 
     <button class="primary-btn" onclick="saveBuyerOrder('${editId}')">儲存</button>
   `);
+
+  renderBuyerSuggestions();
+  renderChannelOrderSuggestions();
+}
+
+function renderBuyerSuggestions() {
+  const input = document.getElementById("boBuyerSearch");
+  const box = document.getElementById("buyerSuggestionBox");
+  if (!input || !box) return;
+
+  const q = input.value.trim();
+  const matched = db.buyers
+    .filter(b => !q || b.name.includes(q))
+    .slice(0, 10);
+
+  let html = "";
+
+  matched.forEach(buyer => {
+    html += `
+      <div class="suggestion-item" onclick="selectBuyerName('${jsString(buyer.name)}')">
+        <div class="suggestion-primary">${escapeHtml(buyer.name)}</div>
+      </div>
+    `;
+  });
+
+  if (q && !db.buyers.some(b => b.name === q)) {
+    html += `
+      <div class="suggestion-item" onclick="selectBuyerName('${jsString(q)}')">
+        <div class="suggestion-primary">＋ 新增「${escapeHtml(q)}」</div>
+      </div>
+    `;
+  }
+
+  box.innerHTML = html || `<div class="suggestion-item"><div class="suggestion-secondary">沒有符合資料</div></div>`;
+}
+
+function selectBuyerName(name) {
+  const input = document.getElementById("boBuyerSearch");
+  if (!input) return;
+  input.value = name;
+  renderBuyerSuggestions();
+}
+
+function renderChannelOrderSuggestions() {
+  const input = document.getElementById("boChannelSearch");
+  const box = document.getElementById("channelOrderSuggestionBox");
+  if (!input || !box) return;
+
+  const q = input.value.trim();
+  const matched = db.channelOrders
+    .filter(order => !q || channelOrderLabel(order).includes(q))
+    .slice(0, 12);
+
+  if (matched.length === 0) {
+    box.innerHTML = `<div class="suggestion-item"><div class="suggestion-secondary">找不到通路訂單</div></div>`;
+    return;
+  }
+
+  box.innerHTML = matched.map(order => {
+    const used = registeredQty(order.id);
+    const remain = Number(order.totalQty) - used;
+
+    return `
+      <div class="suggestion-item" onclick="selectChannelOrder('${order.id}')">
+        <div class="suggestion-primary">${escapeHtml(channelOrderLabel(order))}</div>
+        <div class="suggestion-secondary">總 ${order.totalQty}｜已登記 ${used}｜剩餘 ${remain}｜${escapeHtml(order.status)}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+function selectChannelOrder(id) {
+  const order = byId("channelOrders", id);
+  if (!order) return;
+
+  document.getElementById("boChannelOrderId").value = id;
+  document.getElementById("boChannelSearch").value = channelOrderLabel(order);
+  document.getElementById("selectedChannelHint").innerHTML = escapeHtml(channelOrderLabel(order));
+  renderChannelOrderSuggestions();
 }
 
 function findOrCreateBuyer(name) {
@@ -492,9 +709,10 @@ function findOrCreateBuyer(name) {
 
 function saveBuyerOrder(editId = "") {
   const buyerName = document.getElementById("boBuyerSearch").value.trim();
-  const channelOrderId = document.getElementById("boChannelOrder").value;
+  const channelOrderId = document.getElementById("boChannelOrderId").value;
   const qty = Number(document.getElementById("boQty").value || 0);
   const paid = document.getElementById("boPaid").value === "true";
+  const amount = Number(document.getElementById("boAmount")?.value || 0);
   const note = document.getElementById("boNote").value.trim();
 
   if (!buyerName || !channelOrderId || !qty) {
@@ -517,6 +735,7 @@ function saveBuyerOrder(editId = "") {
     buyerId: buyer.id,
     channelOrderId,
     qty,
+    amount,
     paid,
     note,
     createdAt: editId ? byId("buyerOrders", editId).createdAt : now(),
@@ -547,13 +766,84 @@ function deleteBuyerOrder(id) {
   renderAll();
 }
 
+function setBuyerOrderFilter(filter) {
+  buyerOrderFilter = filter;
+
+  const map = {
+    all: "buyerFilterAll",
+    unpaid: "buyerFilterUnpaid",
+    paid: "buyerFilterPaid"
+  };
+
+  Object.values(map).forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.classList.remove("active");
+  });
+
+  const active = document.getElementById(map[filter]);
+  if (active) active.classList.add("active");
+
+  renderBuyerOrders();
+}
+
+function goToUnpaidOrders() {
+  const buttons = document.querySelectorAll(".bottom-nav button");
+  if (buttons[2]) {
+    switchPage("buyer-orders", buttons[2]);
+  }
+  setBuyerOrderFilter("unpaid");
+}
+
+function getCollapsedBuyerGroups() {
+  try {
+    return JSON.parse(localStorage.getItem(BUYER_GROUP_COLLAPSE_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveCollapsedBuyerGroups(data) {
+  localStorage.setItem(BUYER_GROUP_COLLAPSE_KEY, JSON.stringify(data));
+}
+
+function toggleBuyerGroup(buyerId) {
+  const collapsed = getCollapsedBuyerGroups();
+  collapsed[buyerId] = !collapsed[buyerId];
+  saveCollapsedBuyerGroups(collapsed);
+  renderBuyerOrders();
+}
+
+function renderBuyerOrderCard(order, compact = false) {
+  const co = byId("channelOrders", order.channelOrderId);
+
+  return `
+    <div class="order-card ${compact ? "compact-buyer-order" : ""}">
+      <div class="order-title">👤 ${escapeHtml(nameOf("buyers", order.buyerId))}</div>
+      <p class="order-subtitle">${co ? escapeHtml(channelOrderLabel(co)) : "通路訂單不存在"}</p>
+      <span class="badge blue">${order.qty} 張</span>\n      <span class="badge amount-badge">${money(order.amount)}</span>
+      <button class="pay-toggle ${order.paid ? "primary-btn" : "danger-btn"}" onclick="togglePaid('${order.id}')">
+        ${order.paid ? "✅ 已付款" : "❌ 未付款"}
+      </button>
+      ${order.note ? `<p class="muted">備註：${escapeHtml(order.note)}</p>` : ""}
+      <div class="button-row">
+        <button class="secondary-btn" onclick="openBuyerOrderForm('${order.id}')">編輯</button>
+        <button class="danger-btn" onclick="deleteBuyerOrder('${order.id}')">刪除</button>
+      </div>
+    </div>
+  `;
+}
+
 function renderBuyerOrders() {
   const box = document.getElementById("buyerOrderList");
   const q = document.getElementById("buyerOrderSearch")?.value.trim() || "";
   if (!box) return;
+
   box.innerHTML = "";
 
   const filtered = db.buyerOrders.filter(order => {
+    if (buyerOrderFilter === "unpaid" && order.paid) return false;
+    if (buyerOrderFilter === "paid" && !order.paid) return false;
+
     const co = byId("channelOrders", order.channelOrderId);
     const buyer = nameOf("buyers", order.buyerId);
     const text = `${buyer} ${co ? channelOrderLabel(co) : ""}`;
@@ -565,20 +855,41 @@ function renderBuyerOrders() {
     return;
   }
 
+  if (q) {
+    box.innerHTML = filtered.map(order => renderBuyerOrderCard(order)).join("");
+    return;
+  }
+
+  const groups = {};
   filtered.forEach(order => {
-    const co = byId("channelOrders", order.channelOrderId);
+    if (!groups[order.buyerId]) {
+      groups[order.buyerId] = [];
+    }
+    groups[order.buyerId].push(order);
+  });
+
+  const collapsed = getCollapsedBuyerGroups();
+
+  Object.keys(groups).forEach(buyerId => {
+    const orders = groups[buyerId];
+    const totalQty = orders.reduce((sum, order) => sum + Number(order.qty), 0);
+    const unpaidCount = orders.filter(order => !order.paid).length;
+    const totalAmount = orders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
+    const isCollapsed = collapsed[buyerId];
+
     box.innerHTML += `
-      <div class="order-card">
-        <div class="order-title">👤 ${escapeHtml(nameOf("buyers", order.buyerId))}</div>
-        <p class="order-subtitle">${co ? escapeHtml(channelOrderLabel(co)) : "通路訂單不存在"}</p>
-        <span class="badge blue">${order.qty} 張</span>
-        <button class="pay-toggle ${order.paid ? "primary-btn" : "danger-btn"}" onclick="togglePaid('${order.id}')">
-          ${order.paid ? "✅ 已付款" : "❌ 未付款"}
-        </button>
-        ${order.note ? `<p class="muted">備註：${escapeHtml(order.note)}</p>` : ""}
-        <div class="button-row">
-          <button class="secondary-btn" onclick="openBuyerOrderForm('${order.id}')">編輯</button>
-          <button class="danger-btn" onclick="deleteBuyerOrder('${order.id}')">刪除</button>
+      <div class="buyer-group-card">
+        <div class="buyer-group-header">
+          <div class="buyer-group-title">👤 ${escapeHtml(nameOf("buyers", buyerId))}</div>
+          <div class="buyer-group-summary">
+            ${orders.length} 筆｜${totalQty} 張｜${money(totalAmount)}｜未付款 ${unpaidCount} 筆
+          </div>
+          <button class="buyer-group-toggle" onclick="toggleBuyerGroup('${buyerId}')">
+            ${isCollapsed ? "▶ 展開訂單" : "▼ 收合訂單"}
+          </button>
+        </div>
+        <div class="buyer-group-body" style="${isCollapsed ? "display:none;" : ""}">
+          ${orders.map(order => renderBuyerOrderCard(order, true)).join("")}
         </div>
       </div>
     `;
@@ -586,23 +897,38 @@ function renderBuyerOrders() {
 }
 
 function renderHome() {
+  const today = new Date().toISOString().slice(0, 10);
+  const currentMonth = today.slice(0, 7);
+
+  const unpaidOrders = db.buyerOrders.filter(o => !o.paid);
+  const totalAmount = db.buyerOrders.reduce((sum, o) => sum + Number(o.amount || 0), 0);
+  const unpaidAmount = unpaidOrders.reduce((sum, o) => sum + Number(o.amount || 0), 0);
+
   document.getElementById("statOrders").textContent = db.buyerOrders.length;
-  document.getElementById("statUnpaid").textContent = db.buyerOrders.filter(o => !o.paid).length;
-  document.getElementById("statChannelOrders").textContent = db.channelOrders.length;
+  document.getElementById("statUnpaid").textContent = unpaidOrders.length;
+  document.getElementById("statNotOrdered").textContent = db.channelOrders.filter(o => o.status === "未下單").length;
   document.getElementById("statNotArrived").textContent = db.channelOrders.filter(o => o.status === "未到貨").length;
+  document.getElementById("statTodayFansign").textContent = db.channelOrders.filter(o => o.fansignDate === today).length;
+  document.getElementById("statMonthFansign").textContent = db.channelOrders.filter(o => (o.fansignDate || "").slice(0, 7) === currentMonth).length;
+
+  const totalAmountEl = document.getElementById("statTotalAmount");
+  const unpaidAmountEl = document.getElementById("statUnpaidAmount");
+  if (totalAmountEl) totalAmountEl.textContent = money(totalAmount);
+  if (unpaidAmountEl) unpaidAmountEl.textContent = money(unpaidAmount);
 
   const alerts = document.getElementById("homeAlerts");
-  const unpaid = db.buyerOrders.filter(o => !o.paid).length;
+  const unpaid = unpaidOrders.length;
   const notOrdered = db.channelOrders.filter(o => o.status === "未下單").length;
   const notArrived = db.channelOrders.filter(o => o.status === "未到貨").length;
 
   alerts.innerHTML = `
-    <p><span class="badge red">未付款 ${unpaid}</span></p>
+    <p><span class="badge red clickable-badge" onclick="goToUnpaidOrders()">未付款 ${unpaid}</span></p>
     <p><span class="badge orange">未下單通路 ${notOrdered}</span></p>
     <p><span class="badge blue">未到貨通路 ${notArrived}</span></p>
   `;
 
   renderUpcomingFansigns();
+  renderChannelTimeline();
 }
 
 function renderUpcomingFansigns() {
@@ -686,6 +1012,28 @@ function renderAutoBackups() {
   `).join("");
 }
 
+function renderChannelTimeline() {
+  const box = document.getElementById("channelTimeline");
+  if (!box) return;
+
+  const orders = [...db.channelOrders]
+    .filter(o => o.fansignDate)
+    .sort((a, b) => `${a.fansignDate} ${a.fansignTime}`.localeCompare(`${b.fansignDate} ${b.fansignTime}`));
+
+  if (orders.length === 0) {
+    box.innerHTML = `<p class="muted">尚無簽售時間資料</p>`;
+    return;
+  }
+
+  box.innerHTML = orders.map(order => `
+    <div class="timeline-item">
+      <div class="timeline-date">${escapeHtml(order.fansignDate)} ${escapeHtml(order.fansignTime || "")}</div>
+      <div>${escapeHtml(channelOrderLabel(order))}</div>
+      <div class="muted">狀態：${escapeHtml(order.status)}｜總下單 ${order.totalQty}｜已登記 ${registeredQty(order.id)}</div>
+    </div>
+  `).join("");
+}
+
 function exportBackup() {
   document.getElementById("backupBox").value = JSON.stringify(db, null, 2);
   alert("備份已產生，請複製保存。");
@@ -723,6 +1071,7 @@ function renderAll() {
   renderMasterList("buyers", "buyerList");
   renderChannelOrders();
   renderBuyerOrders();
+  setBuyerOrderFilter(buyerOrderFilter);
   renderSearch();
   saveData();
 }
