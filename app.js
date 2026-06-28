@@ -1,4 +1,4 @@
-// Fansign Manager v3.9
+// Fansign Manager v3.9.1
 
 const STORAGE_KEY = "fansign_manager_v3";
 const BACKUP_KEY = "fansign_manager_v3_backups";
@@ -221,17 +221,20 @@ function isMasterUsed(collection, id) {
 function renderMasterList(collection, elementId) {
   const box = document.getElementById(elementId);
   if (!box) return;
+
   box.innerHTML = "";
 
-  if (db[collection].length === 0) {
+  const list = Array.isArray(db[collection]) ? db[collection] : [];
+
+  if (list.length === 0) {
     box.innerHTML = `<p class="muted">尚無資料</p>`;
     return;
   }
 
-  db[collection].forEach(item => {
+  list.forEach(item => {
     box.innerHTML += `
       <div class="list-item">
-        <strong>${escapeHtml(item.name)}</strong>
+        <strong>${escapeHtml(item.name || "未命名")}</strong>
         <button class="small-btn edit-btn" onclick="renameMaster('${collection}','${item.id}')">編輯</button>
         <button class="small-btn delete-btn" onclick="deleteMaster('${collection}','${item.id}')">刪除</button>
       </div>
@@ -1064,16 +1067,44 @@ function clearAll() {
 }
 
 function renderAll() {
-  renderHome();
+  try {
+    renderHome();
+  } catch (error) {
+    console.warn("renderHome error", error);
+  }
+
+  try {
+    renderMasterList("artists", "artistList");
+    renderMasterList("channels", "channelList");
+    renderMasterList("albumTypes", "albumTypeList");
+    renderMasterList("buyers", "buyerList");
+  } catch (error) {
+    console.warn("renderMasterList error", error);
+  }
+
+  try {
+    renderChannelOrders();
+    renderBuyerOrders();
+    renderSearch();
+    renderChannelTimeline();
+    renderAutoBackups();
+  } catch (error) {
+    console.warn("render page error", error);
+  }
+
+  saveData();
+}
+
+function forceRenderSettingsLists() {
   renderMasterList("artists", "artistList");
   renderMasterList("channels", "channelList");
   renderMasterList("albumTypes", "albumTypeList");
   renderMasterList("buyers", "buyerList");
-  renderChannelOrders();
-  renderBuyerOrders();
-  setBuyerOrderFilter(buyerOrderFilter);
-  renderSearch();
-  saveData();
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  renderAll();
+  forceRenderSettingsLists();
+});
 
 renderAll();
