@@ -11,9 +11,7 @@
   --shadow: 0 6px 20px rgba(0,0,0,.06);
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
@@ -32,15 +30,8 @@ body {
   padding: 14px 16px;
 }
 
-.app-header h1 {
-  margin: 0;
-  font-size: 24px;
-}
-
-.app-header p {
-  margin: 4px 0 0;
-  color: var(--muted);
-}
+.app-header h1 { margin: 0; font-size: 24px; }
+.app-header p { margin: 4px 0 0; color: var(--muted); }
 
 .app-main {
   max-width: 900px;
@@ -49,13 +40,8 @@ body {
   padding-bottom: 92px;
 }
 
-.page {
-  display: none;
-}
-
-.page.active {
-  display: block;
-}
+.page { display: none; }
+.page.active { display: block; }
 
 .card {
   background: var(--card);
@@ -65,14 +51,8 @@ body {
   box-shadow: var(--shadow);
 }
 
-.card h2,
-.card h3 {
-  margin: 0 0 12px;
-}
-
-.muted {
-  color: var(--muted);
-}
+.card h2, .card h3 { margin: 0 0 12px; }
+.muted { color: var(--muted); }
 
 .grid {
   display: grid;
@@ -99,18 +79,13 @@ body {
   color: var(--muted);
 }
 
-input,
-select,
-textarea,
-button {
+input, select, textarea, button {
   width: 100%;
   font: inherit;
   border-radius: 12px;
 }
 
-input,
-select,
-textarea {
+input, select, textarea {
   border: 1px solid var(--line);
   padding: 12px;
   background: white;
@@ -127,26 +102,10 @@ button {
   font-weight: 800;
 }
 
-.primary-btn {
-  background: var(--blue);
-  color: white;
-}
-
-.secondary-btn {
-  background: #e9e9ef;
-  color: #111;
-}
-
-.danger-btn {
-  background: var(--red);
-  color: white;
-}
-
-.icon-btn {
-  width: auto;
-  background: transparent;
-  font-size: 20px;
-}
+.primary-btn { background: var(--blue); color: white; }
+.secondary-btn { background: #e9e9ef; color: #111; }
+.danger-btn { background: var(--red); color: white; }
+.icon-btn { width: auto; background: transparent; font-size: 20px; }
 
 .row {
   display: grid;
@@ -154,9 +113,7 @@ button {
   gap: 8px;
 }
 
-.search-input {
-  margin-top: 8px;
-}
+.search-input { margin-top: 8px; }
 
 .list-item {
   border-top: 1px solid var(--line);
@@ -167,9 +124,7 @@ button {
   align-items: center;
 }
 
-.list-item strong {
-  word-break: break-all;
-}
+.list-item strong { word-break: break-all; }
 
 .small-btn {
   width: auto;
@@ -177,15 +132,8 @@ button {
   font-size: 14px;
 }
 
-.edit-btn {
-  background: #fff3df;
-  color: #a45700;
-}
-
-.delete-btn {
-  background: #ffecec;
-  color: #c62828;
-}
+.edit-btn { background: #fff3df; color: #a45700; }
+.delete-btn { background: #ffecec; color: #c62828; }
 
 .order-card {
   background: white;
@@ -209,25 +157,10 @@ button {
   background: #eee;
 }
 
-.badge.blue {
-  background: #e5f1ff;
-  color: #007aff;
-}
-
-.badge.green {
-  background: #e8f8ee;
-  color: #16803c;
-}
-
-.badge.red {
-  background: #ffecec;
-  color: #c62828;
-}
-
-.badge.orange {
-  background: #fff3df;
-  color: #b35b00;
-}
+.badge.blue { background: #e5f1ff; color: #007aff; }
+.badge.green { background: #e8f8ee; color: #16803c; }
+.badge.red { background: #ffecec; color: #c62828; }
+.badge.orange { background: #fff3df; color: #b35b00; }
 
 .pay-toggle {
   width: auto;
@@ -259,9 +192,7 @@ button {
   padding: 8px 0;
 }
 
-.bottom-nav button.active {
-  color: var(--blue);
-}
+.bottom-nav button.active { color: var(--blue); }
 
 .modal {
   position: fixed;
@@ -272,9 +203,7 @@ button {
   align-items: flex-end;
 }
 
-.modal.hidden {
-  display: none;
-}
+.modal.hidden { display: none; }
 
 .modal-panel {
   width: 100%;
@@ -293,9 +222,7 @@ button {
   align-items: center;
 }
 
-.form-field {
-  margin-bottom: 10px;
-}
+.form-field { margin-bottom: 10px; }
 
 .form-field label {
   display: block;
@@ -304,11 +231,6 @@ button {
 }
 
 @media (min-width: 768px) {
-  .modal {
-    align-items: center;
-  }
-
-  .modal-panel {
-    border-radius: 22px;
-  }
+  .modal { align-items: center; }
+  .modal-panel { border-radius: 22px; }
 }
