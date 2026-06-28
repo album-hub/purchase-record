@@ -16,21 +16,26 @@
 <main class="app-main">
 
   <section id="page-home" class="page active">
-    <div class="card">
+    <div class="card hero-card">
       <h2>首頁</h2>
       <button class="primary-btn" onclick="openBuyerOrderForm()">＋ 新增購買人訂單</button>
     </div>
 
     <div class="grid">
-      <div class="stat-card"><span id="statBuyers">0</span><p>購買人</p></div>
-      <div class="stat-card"><span id="statOrders">0</span><p>訂單</p></div>
+      <div class="stat-card"><span id="statOrders">0</span><p>購買人訂單</p></div>
       <div class="stat-card"><span id="statUnpaid">0</span><p>未付款</p></div>
       <div class="stat-card"><span id="statChannelOrders">0</span><p>通路訂單</p></div>
+      <div class="stat-card"><span id="statNotArrived">0</span><p>未到貨</p></div>
     </div>
 
     <div class="card">
       <h2>快速提醒</h2>
       <div id="homeAlerts"></div>
+    </div>
+
+    <div class="card">
+      <h2>最近簽售</h2>
+      <div id="upcomingFansigns"></div>
     </div>
   </section>
 
@@ -38,6 +43,7 @@
     <div class="card">
       <h2>通路訂單</h2>
       <button class="primary-btn" onclick="openChannelOrderForm()">＋ 新增通路訂單</button>
+      <input id="channelOrderSearch" class="search-input" placeholder="搜尋藝人 / 通路 / 批次" oninput="renderChannelOrders()" />
     </div>
     <div id="channelOrderList"></div>
   </section>
