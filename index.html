@@ -1,310 +1,726 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <title>購買紀錄表</title>
-  <style>
-    body {
-      font-family: Arial, "Microsoft JhengHei", sans-serif;
-      background: #f5f5f5;
-      padding: 16px;
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>購買紀錄管理 V2</title>
 
-    .box {
-      max-width: 900px;
-      margin: auto;
-      background: white;
-      padding: 18px;
-      border-radius: 14px;
-    }
+<style>
+:root {
+  --bg: #f2f2f7;
+  --card: #ffffff;
+  --text: #111111;
+  --sub: #666666;
+  --blue: #007aff;
+  --green: #34c759;
+  --red: #ff3b30;
+  --orange: #ff9500;
+  --gray: #8e8e93;
+  --line: #e5e5ea;
+}
 
-    h1 {
-      text-align: center;
-    }
+* {
+  box-sizing: border-box;
+}
 
-    input, select, button {
-      width: 100%;
-      padding: 11px;
-      margin: 6px 0;
-      font-size: 16px;
-      box-sizing: border-box;
-    }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Microsoft JhengHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
 
-    button {
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-    }
+header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(12px);
+  padding: 16px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 800;
+  border-bottom: 1px solid var(--line);
+}
 
-    .addBtn {
-      background: #4CAF50;
-      color: white;
-    }
+.container {
+  max-width: 900px;
+  margin: auto;
+  padding: 14px;
+  padding-bottom: 90px;
+}
 
-    .paidBtn {
-      background: #2196F3;
-      color: white;
-    }
+.card {
+  background: var(--card);
+  border-radius: 18px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+}
 
-    .unpaidBtn {
-      background: #999;
-      color: white;
-    }
+h2 {
+  font-size: 18px;
+  margin: 0 0 12px;
+}
 
-    .editBtn {
-      background: #ff9800;
-      color: white;
-      margin-bottom: 4px;
-    }
+input, select, textarea, button {
+  width: 100%;
+  padding: 12px;
+  margin: 6px 0;
+  font-size: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  font-family: inherit;
+}
 
-    .deleteBtn {
-      background: #f44336;
-      color: white;
-    }
+textarea {
+  min-height: 70px;
+  resize: vertical;
+}
 
-    .toggleBtn {
-      background: #673ab7;
-      color: white;
-    }
+button {
+  border: none;
+  font-weight: 700;
+}
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 18px;
-      background: white;
-      font-size: 14px;
-    }
+.primary { background: var(--blue); color: white; }
+.green { background: var(--green); color: white; }
+.red { background: var(--red); color: white; }
+.orange { background: var(--orange); color: white; }
+.gray { background: var(--gray); color: white; }
 
-    th, td {
-      border: 1px solid #ccc;
-      padding: 8px;
-      text-align: center;
-    }
+.row {
+  display: flex;
+  gap: 8px;
+}
 
-    th {
-      background: #eee;
-    }
+.row button {
+  flex: 1;
+}
 
-    .nameRow {
-      background: #f0f0f0;
-      font-weight: bold;
-    }
+.tabs {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 900px;
+  margin: auto;
+  display: flex;
+  background: white;
+  border-top: 1px solid var(--line);
+  z-index: 20;
+}
 
-    .hidden {
-      display: none;
-    }
-  </style>
+.tabs button {
+  border-radius: 0;
+  background: white;
+  color: #666;
+  padding: 10px 4px;
+  font-size: 13px;
+}
+
+.tabs button.active {
+  color: var(--blue);
+  font-weight: 900;
+}
+
+.page {
+  display: none;
+}
+
+.page.active {
+  display: block;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.stat {
+  background: #f7f7f9;
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.stat .num {
+  font-size: 26px;
+  font-weight: 900;
+}
+
+.stat .label {
+  color: var(--sub);
+  font-size: 14px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 13px;
+  margin: 3px 3px 3px 0;
+  background: #eee;
+}
+
+.badge.blue { background: #e5f1ff; color: #007aff; }
+.badge.green { background: #e8f8ee; color: #16803c; }
+.badge.red { background: #ffecec; color: #c62828; }
+.badge.orange { background: #fff3df; color: #b35b00; }
+
+.item {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+.item-title {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.small {
+  color: var(--sub);
+  font-size: 14px;
+}
+
+.order-card {
+  background: #fafafa;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  margin-top: 10px;
+}
+
+.toggle-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hidden {
+  display: none;
+}
+</style>
 </head>
+
 <body>
 
-<div class="box">
-  <h1>購買紀錄表</h1>
+<header>購買紀錄管理 V2</header>
 
-  <input type="text" id="searchName" placeholder="搜尋購買人姓名" oninput="renderTable()">
+<div class="container">
 
-  <hr>
+  <section id="page-dashboard" class="page active">
+    <div class="card">
+      <h2>總覽</h2>
+      <div class="stat-grid">
+        <div class="stat">
+          <div class="num" id="statBuyers">0</div>
+          <div class="label">購買人</div>
+        </div>
+        <div class="stat">
+          <div class="num" id="statOrders">0</div>
+          <div class="label">購買人訂單</div>
+        </div>
+        <div class="stat">
+          <div class="num" id="statQuantity">0</div>
+          <div class="label">總分配數量</div>
+        </div>
+        <div class="stat">
+          <div class="num" id="statUnpaid">0</div>
+          <div class="label">未付款筆數</div>
+        </div>
+      </div>
+    </div>
 
-  <input type="text" id="buyerName" placeholder="購買人姓名">
+    <div class="card">
+      <h2>通路總訂單摘要</h2>
+      <div id="dashboardChannels"></div>
+    </div>
+  </section>
 
-  <select id="artistName">
-    <option value="">請選擇藝人</option>
-    <option value="Yuju">Yuju</option>
-    <option value="Yerin">Yerin</option>
-    <option value="GFRIEND">GFRIEND</option>
-    <option value="其他藝人">其他藝人</option>
-  </select>
+  <section id="page-channel" class="page">
+    <div class="card">
+      <h2>新增／編輯通路總訂單</h2>
 
-  <input type="text" id="channelName" placeholder="購買通路名稱">
+      <input id="channelArtist" placeholder="藝人名稱，例如 Yuju">
+      <input id="channelName" placeholder="通路名稱，例如 Soundwave">
+      <input id="channelTotal" type="number" min="1" placeholder="這個通路總共下幾張">
 
-  <input type="number" id="quantity" placeholder="購買數量" min="1">
+      <select id="channelStatus">
+        <option value="未到貨">未到貨</option>
+        <option value="部分到貨">部分到貨</option>
+        <option value="已到貨">已到貨</option>
+        <option value="已完成">已完成</option>
+      </select>
 
-  <button id="paidButton" class="unpaidBtn" onclick="togglePaid()">未付款</button>
+      <textarea id="channelNote" placeholder="通路備註，可不填"></textarea>
 
-  <button id="submitButton" class="addBtn" onclick="addOrUpdateRecord()">新增紀錄</button>
+      <button class="primary" onclick="saveChannelOrder()">儲存通路總訂單</button>
+      <button class="gray" onclick="clearChannelForm()">清空</button>
+    </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>購買人</th>
-        <th>藝人</th>
-        <th>通路</th>
-        <th>數量</th>
-        <th>付款</th>
-        <th>操作</th>
-      </tr>
-    </thead>
-    <tbody id="recordTable"></tbody>
-  </table>
+    <div class="card">
+      <h2>通路總訂單</h2>
+      <input id="searchChannel" placeholder="搜尋藝人或通路" oninput="renderAll()">
+      <div id="channelList"></div>
+    </div>
+  </section>
+
+  <section id="page-buyer" class="page">
+    <div class="card">
+      <h2>新增／編輯購買人訂單</h2>
+
+      <input id="buyerName" placeholder="購買人姓名">
+
+      <select id="buyerChannelSelect"></select>
+
+      <input id="buyerQuantity" type="number" min="1" placeholder="購買數量">
+
+      <select id="buyerPaid">
+        <option value="未付款">未付款</option>
+        <option value="已付款">已付款</option>
+      </select>
+
+      <textarea id="buyerNote" placeholder="購買人備註，可不填"></textarea>
+
+      <button class="green" onclick="saveBuyerOrder()">儲存購買人訂單</button>
+      <button class="gray" onclick="clearBuyerForm()">清空</button>
+    </div>
+
+    <div class="card">
+      <h2>購買人訂單</h2>
+      <input id="searchBuyer" placeholder="搜尋購買人姓名" oninput="renderAll()">
+      <div id="buyerList"></div>
+    </div>
+  </section>
+
+  <section id="page-backup" class="page">
+    <div class="card">
+      <h2>備份／還原</h2>
+      <button class="primary" onclick="exportData()">匯出備份 JSON</button>
+      <textarea id="importBox" placeholder="把備份 JSON 貼在這裡"></textarea>
+      <button class="orange" onclick="importData()">還原備份</button>
+      <button class="red" onclick="clearAllData()">清空所有資料</button>
+    </div>
+  </section>
+
+</div>
+
+<div class="tabs">
+  <button class="active" onclick="switchPage('dashboard', this)">🏠<br>總覽</button>
+  <button onclick="switchPage('channel', this)">🎤<br>通路</button>
+  <button onclick="switchPage('buyer', this)">👤<br>購買人</button>
+  <button onclick="switchPage('backup', this)">⚙️<br>備份</button>
 </div>
 
 <script>
-  let records = JSON.parse(localStorage.getItem("purchaseRecords")) || [];
-  let isPaid = false;
-  let editIndex = null;
-  let collapsedNames = JSON.parse(localStorage.getItem("collapsedNames")) || {};
+let channelOrders = JSON.parse(localStorage.getItem("v2_channelOrders")) || [];
+let buyerOrders = JSON.parse(localStorage.getItem("v2_buyerOrders")) || [];
+let collapsedBuyers = JSON.parse(localStorage.getItem("v2_collapsedBuyers")) || {};
 
-  function saveRecords() {
-    localStorage.setItem("purchaseRecords", JSON.stringify(records));
+let editingChannelIndex = null;
+let editingBuyerIndex = null;
+
+function saveData() {
+  localStorage.setItem("v2_channelOrders", JSON.stringify(channelOrders));
+  localStorage.setItem("v2_buyerOrders", JSON.stringify(buyerOrders));
+  localStorage.setItem("v2_collapsedBuyers", JSON.stringify(collapsedBuyers));
+}
+
+function switchPage(page, btn) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.getElementById("page-" + page).classList.add("active");
+
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function getChannelKey(order) {
+  return order.artist + "||" + order.channel;
+}
+
+function getAllocated(artist, channel) {
+  return buyerOrders
+    .filter(o => o.artist === artist && o.channel === channel)
+    .reduce((sum, o) => sum + Number(o.quantity), 0);
+}
+
+function clearChannelForm() {
+  editingChannelIndex = null;
+  document.getElementById("channelArtist").value = "";
+  document.getElementById("channelName").value = "";
+  document.getElementById("channelTotal").value = "";
+  document.getElementById("channelStatus").value = "未到貨";
+  document.getElementById("channelNote").value = "";
+}
+
+function clearBuyerForm() {
+  editingBuyerIndex = null;
+  document.getElementById("buyerName").value = "";
+  document.getElementById("buyerQuantity").value = "";
+  document.getElementById("buyerPaid").value = "未付款";
+  document.getElementById("buyerNote").value = "";
+}
+
+function saveChannelOrder() {
+  const artist = document.getElementById("channelArtist").value.trim();
+  const channel = document.getElementById("channelName").value.trim();
+  const total = Number(document.getElementById("channelTotal").value);
+  const status = document.getElementById("channelStatus").value;
+  const note = document.getElementById("channelNote").value.trim();
+
+  if (!artist || !channel || !total) {
+    alert("請填完整：藝人、通路、總數量");
+    return;
   }
 
-  function saveCollapsed() {
-    localStorage.setItem("collapsedNames", JSON.stringify(collapsedNames));
+  const data = { artist, channel, total, status, note };
+
+  if (editingChannelIndex === null) {
+    channelOrders.push(data);
+  } else {
+    channelOrders[editingChannelIndex] = data;
+    editingChannelIndex = null;
   }
 
-  function togglePaid() {
-    isPaid = !isPaid;
-    updatePaidButton();
+  clearChannelForm();
+  saveData();
+  renderAll();
+}
+
+function saveBuyerOrder() {
+  const name = document.getElementById("buyerName").value.trim();
+  const channelIndex = document.getElementById("buyerChannelSelect").value;
+  const quantity = Number(document.getElementById("buyerQuantity").value);
+  const paid = document.getElementById("buyerPaid").value;
+  const note = document.getElementById("buyerNote").value.trim();
+
+  if (!name || channelIndex === "" || !quantity) {
+    alert("請填完整：姓名、通路、數量");
+    return;
   }
 
-  function updatePaidButton() {
-    const btn = document.getElementById("paidButton");
+  const channelOrder = channelOrders[channelIndex];
 
-    if (isPaid) {
-      btn.textContent = "已付款";
-      btn.className = "paidBtn";
-    } else {
-      btn.textContent = "未付款";
-      btn.className = "unpaidBtn";
+  const data = {
+    name,
+    artist: channelOrder.artist,
+    channel: channelOrder.channel,
+    quantity,
+    paid,
+    note,
+    createdAt: new Date().toLocaleString()
+  };
+
+  if (editingBuyerIndex === null) {
+    buyerOrders.push(data);
+  } else {
+    data.createdAt = buyerOrders[editingBuyerIndex].createdAt || new Date().toLocaleString();
+    buyerOrders[editingBuyerIndex] = data;
+    editingBuyerIndex = null;
+  }
+
+  clearBuyerForm();
+  saveData();
+  renderAll();
+}
+
+function renderChannelSelect() {
+  const select = document.getElementById("buyerChannelSelect");
+  select.innerHTML = "";
+
+  if (channelOrders.length === 0) {
+    select.innerHTML = `<option value="">請先新增通路總訂單</option>`;
+    return;
+  }
+
+  channelOrders.forEach((order, index) => {
+    select.innerHTML += `
+      <option value="${index}">
+        ${order.artist}｜${order.channel}
+      </option>
+    `;
+  });
+}
+
+function statusBadge(status) {
+  if (status === "已完成") return `<span class="badge green">${status}</span>`;
+  if (status === "已到貨") return `<span class="badge blue">${status}</span>`;
+  if (status === "部分到貨") return `<span class="badge orange">${status}</span>`;
+  return `<span class="badge red">${status}</span>`;
+}
+
+function paidBadge(paid) {
+  return paid === "已付款"
+    ? `<span class="badge green">已付款</span>`
+    : `<span class="badge red">未付款</span>`;
+}
+
+function renderDashboard() {
+  const buyers = [...new Set(buyerOrders.map(o => o.name))];
+  const totalQty = buyerOrders.reduce((sum, o) => sum + Number(o.quantity), 0);
+  const unpaid = buyerOrders.filter(o => o.paid === "未付款").length;
+
+  document.getElementById("statBuyers").textContent = buyers.length;
+  document.getElementById("statOrders").textContent = buyerOrders.length;
+  document.getElementById("statQuantity").textContent = totalQty;
+  document.getElementById("statUnpaid").textContent = unpaid;
+
+  const box = document.getElementById("dashboardChannels");
+  box.innerHTML = "";
+
+  if (channelOrders.length === 0) {
+    box.innerHTML = `<p class="small">目前還沒有通路總訂單</p>`;
+    return;
+  }
+
+  channelOrders.forEach(order => {
+    const allocated = getAllocated(order.artist, order.channel);
+    const remain = Number(order.total) - allocated;
+    const remainClass = remain < 0 ? "red" : remain === 0 ? "green" : "orange";
+
+    box.innerHTML += `
+      <div class="item">
+        <div class="item-title">${order.artist}｜${order.channel}</div>
+        ${statusBadge(order.status)}
+        <br>
+        <span class="badge">總下單 ${order.total}</span>
+        <span class="badge blue">已分配 ${allocated}</span>
+        <span class="badge ${remainClass}">剩餘 ${remain}</span>
+      </div>
+    `;
+  });
+}
+
+function renderChannels() {
+  const list = document.getElementById("channelList");
+  const search = document.getElementById("searchChannel").value.trim();
+  list.innerHTML = "";
+
+  const filtered = channelOrders.filter(o => {
+    const text = `${o.artist} ${o.channel}`;
+    return !search || text.includes(search);
+  });
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<p class="small">目前沒有符合的通路總訂單</p>`;
+    return;
+  }
+
+  filtered.forEach(order => {
+    const index = channelOrders.indexOf(order);
+    const allocated = getAllocated(order.artist, order.channel);
+    const remain = Number(order.total) - allocated;
+    const remainClass = remain < 0 ? "red" : remain === 0 ? "green" : "orange";
+
+    list.innerHTML += `
+      <div class="item">
+        <div class="item-title">${order.artist}｜${order.channel}</div>
+        ${statusBadge(order.status)}
+        <br>
+        <span class="badge">總下單 ${order.total}</span>
+        <span class="badge blue">已分配 ${allocated}</span>
+        <span class="badge ${remainClass}">剩餘 ${remain}</span>
+        ${order.note ? `<p class="small">備註：${order.note}</p>` : ""}
+
+        <div class="row">
+          <button class="orange" onclick="editChannel(${index})">編輯</button>
+          <button class="red" onclick="deleteChannel(${index})">刪除</button>
+        </div>
+      </div>
+    `;
+  });
+}
+
+function renderBuyers() {
+  const list = document.getElementById("buyerList");
+  const search = document.getElementById("searchBuyer").value.trim();
+  list.innerHTML = "";
+
+  const grouped = {};
+
+  buyerOrders.forEach((order, index) => {
+    if (search && !order.name.includes(search)) return;
+
+    if (!grouped[order.name]) grouped[order.name] = [];
+    grouped[order.name].push({ ...order, index });
+  });
+
+  const names = Object.keys(grouped);
+
+  if (names.length === 0) {
+    list.innerHTML = `<p class="small">目前沒有符合的購買人訂單</p>`;
+    return;
+  }
+
+  names.forEach(name => {
+    const orders = grouped[name];
+    const total = orders.reduce((sum, o) => sum + Number(o.quantity), 0);
+    const unpaid = orders.filter(o => o.paid === "未付款").length;
+    const isCollapsed = collapsedBuyers[name];
+
+    let html = `
+      <div class="item">
+        <div class="toggle-title" onclick="toggleBuyer('${name}')">
+          <div>
+            <div class="item-title">👤 ${name}</div>
+            <span class="badge">共 ${orders.length} 筆</span>
+            <span class="badge blue">總數量 ${total}</span>
+            <span class="badge ${unpaid > 0 ? "red" : "green"}">
+              ${unpaid > 0 ? "未付款 " + unpaid + " 筆" : "全部已付款"}
+            </span>
+          </div>
+          <div>${isCollapsed ? "▶" : "▼"}</div>
+        </div>
+    `;
+
+    if (!isCollapsed) {
+      orders.forEach(order => {
+        html += `
+          <div class="order-card">
+            <strong>${order.artist}｜${order.channel}</strong><br>
+            <span class="badge blue">${order.quantity} 張</span>
+            ${paidBadge(order.paid)}
+            ${order.note ? `<p class="small">備註：${order.note}</p>` : ""}
+            <p class="small">建立時間：${order.createdAt || "-"}</p>
+
+            <div class="row">
+              <button class="orange" onclick="editBuyer(${order.index})">編輯</button>
+              <button class="red" onclick="deleteBuyer(${order.index})">刪除</button>
+            </div>
+          </div>
+        `;
+      });
     }
+
+    html += `</div>`;
+    list.innerHTML += html;
+  });
+}
+
+function toggleBuyer(name) {
+  collapsedBuyers[name] = !collapsedBuyers[name];
+  saveData();
+  renderBuyers();
+}
+
+function editChannel(index) {
+  const order = channelOrders[index];
+
+  document.getElementById("channelArtist").value = order.artist;
+  document.getElementById("channelName").value = order.channel;
+  document.getElementById("channelTotal").value = order.total;
+  document.getElementById("channelStatus").value = order.status;
+  document.getElementById("channelNote").value = order.note || "";
+
+  editingChannelIndex = index;
+  switchPage("channel", document.querySelectorAll(".tabs button")[1]);
+}
+
+function deleteChannel(index) {
+  const target = channelOrders[index];
+  const used = buyerOrders.some(o => o.artist === target.artist && o.channel === target.channel);
+
+  if (used) {
+    alert("這個通路已經有購買人訂單，請先刪除相關購買人訂單。");
+    return;
   }
 
-  function addOrUpdateRecord() {
-    const buyerName = document.getElementById("buyerName").value.trim();
-    const artistName = document.getElementById("artistName").value;
-    const channelName = document.getElementById("channelName").value.trim();
-    const quantity = document.getElementById("quantity").value;
+  if (confirm("確定刪除這個通路總訂單嗎？")) {
+    channelOrders.splice(index, 1);
+    saveData();
+    renderAll();
+  }
+}
 
-    if (!buyerName || !artistName || !channelName || !quantity) {
-      alert("請把資料填完整");
+function editBuyer(index) {
+  const order = buyerOrders[index];
+
+  document.getElementById("buyerName").value = order.name;
+  document.getElementById("buyerQuantity").value = order.quantity;
+  document.getElementById("buyerPaid").value = order.paid;
+  document.getElementById("buyerNote").value = order.note || "";
+
+  const channelIndex = channelOrders.findIndex(c =>
+    c.artist === order.artist && c.channel === order.channel
+  );
+
+  if (channelIndex !== -1) {
+    document.getElementById("buyerChannelSelect").value = channelIndex;
+  }
+
+  editingBuyerIndex = index;
+  switchPage("buyer", document.querySelectorAll(".tabs button")[2]);
+}
+
+function deleteBuyer(index) {
+  if (confirm("確定刪除這筆購買人訂單嗎？")) {
+    buyerOrders.splice(index, 1);
+    saveData();
+    renderAll();
+  }
+}
+
+function exportData() {
+  const data = {
+    channelOrders,
+    buyerOrders,
+    collapsedBuyers,
+    exportedAt: new Date().toLocaleString()
+  };
+
+  document.getElementById("importBox").value = JSON.stringify(data, null, 2);
+  alert("備份已產生，請複製文字保存。");
+}
+
+function importData() {
+  try {
+    const text = document.getElementById("importBox").value.trim();
+    if (!text) {
+      alert("請先貼上備份 JSON");
       return;
     }
 
-    const record = {
-      buyerName,
-      artistName,
-      channelName,
-      quantity,
-      paid: isPaid
-    };
+    const data = JSON.parse(text);
 
-    if (editIndex === null) {
-      records.push(record);
-    } else {
-      records[editIndex] = record;
-      editIndex = null;
-      document.getElementById("submitButton").textContent = "新增紀錄";
+    if (!Array.isArray(data.channelOrders) || !Array.isArray(data.buyerOrders)) {
+      alert("備份格式不正確");
+      return;
     }
 
-    saveRecords();
-    clearForm();
-    renderTable();
+    channelOrders = data.channelOrders;
+    buyerOrders = data.buyerOrders;
+    collapsedBuyers = data.collapsedBuyers || {};
+
+    saveData();
+    renderAll();
+    alert("還原成功");
+  } catch (e) {
+    alert("還原失敗，請確認 JSON 是否正確");
   }
+}
 
-  function clearForm() {
-    document.getElementById("buyerName").value = "";
-    document.getElementById("artistName").value = "";
-    document.getElementById("channelName").value = "";
-    document.getElementById("quantity").value = "";
-    isPaid = false;
-    updatePaidButton();
+function clearAllData() {
+  if (confirm("確定要清空所有資料嗎？這個動作不能復原。")) {
+    channelOrders = [];
+    buyerOrders = [];
+    collapsedBuyers = {};
+    saveData();
+    renderAll();
   }
+}
 
-  function editRecord(index) {
-    const record = records[index];
+function renderAll() {
+  renderChannelSelect();
+  renderDashboard();
+  renderChannels();
+  renderBuyers();
+}
 
-    document.getElementById("buyerName").value = record.buyerName;
-    document.getElementById("artistName").value = record.artistName;
-    document.getElementById("channelName").value = record.channelName;
-    document.getElementById("quantity").value = record.quantity;
-
-    isPaid = record.paid;
-    updatePaidButton();
-
-    editIndex = index;
-    document.getElementById("submitButton").textContent = "儲存修改";
-
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function deleteRecord(index) {
-    if (confirm("確定要刪除這筆資料嗎？")) {
-      records.splice(index, 1);
-      saveRecords();
-      renderTable();
-    }
-  }
-
-  function toggleCollapse(name) {
-    collapsedNames[name] = !collapsedNames[name];
-    saveCollapsed();
-    renderTable();
-  }
-
-  function renderTable() {
-    const table = document.getElementById("recordTable");
-    const searchText = document.getElementById("searchName").value.trim();
-    table.innerHTML = "";
-
-    const grouped = {};
-
-    records.forEach((record, index) => {
-      if (searchText && !record.buyerName.includes(searchText)) {
-        return;
-      }
-
-      if (!grouped[record.buyerName]) {
-        grouped[record.buyerName] = [];
-      }
-
-      grouped[record.buyerName].push({
-        ...record,
-        originalIndex: index
-      });
-    });
-
-    Object.keys(grouped).forEach(name => {
-      const orders = grouped[name];
-      const totalQuantity = orders.reduce((sum, item) => sum + Number(item.quantity), 0);
-      const isCollapsed = collapsedNames[name];
-
-      const nameRow = document.createElement("tr");
-      nameRow.className = "nameRow";
-
-      nameRow.innerHTML = `
-        <td>${name}</td>
-        <td colspan="3">共 ${orders.length} 筆訂單｜總數量 ${totalQuantity}</td>
-        <td colspan="2">
-          <button class="toggleBtn" onclick="toggleCollapse('${name}')">
-            ${isCollapsed ? "展開" : "收合"}
-          </button>
-        </td>
-      `;
-
-      table.appendChild(nameRow);
-
-      if (!isCollapsed) {
-        orders.forEach(record => {
-          const row = document.createElement("tr");
-
-          row.innerHTML = `
-            <td></td>
-            <td>${record.artistName}</td>
-            <td>${record.channelName}</td>
-            <td>${record.quantity}</td>
-            <td>${record.paid ? "已付款" : "未付款"}</td>
-            <td>
-              <button class="editBtn" onclick="editRecord(${record.originalIndex})">編輯</button>
-              <button class="deleteBtn" onclick="deleteRecord(${record.originalIndex})">刪除</button>
-            </td>
-          `;
-
-          table.appendChild(row);
-        });
-      }
-    });
-  }
-
-  renderTable();
+renderAll();
 </script>
 
 </body>
