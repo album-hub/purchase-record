@@ -287,3 +287,22 @@ button {
 .orange-btn { background: var(--orange); color: white; }
 .gray-btn { background: #e9e9ef; color: #333; }
 .red-btn { background: var(--red); color: white; }
+
+.backup-item {
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+
+.backup-time {
+  font-weight: 800;
+}
+
+.backup-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.backup-actions button {
+  flex: 1;
+}
