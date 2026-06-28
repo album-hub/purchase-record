@@ -18,28 +18,14 @@
   <section id="page-home" class="page active">
     <div class="card">
       <h2>首頁</h2>
-      <button class="primary-btn" onclick="openBuyerOrderForm()">
-        ＋ 新增購買人訂單
-      </button>
+      <button class="primary-btn" onclick="openBuyerOrderForm()">＋ 新增購買人訂單</button>
     </div>
 
     <div class="grid">
-      <div class="stat-card">
-        <span id="statBuyers">0</span>
-        <p>購買人</p>
-      </div>
-      <div class="stat-card">
-        <span id="statOrders">0</span>
-        <p>訂單</p>
-      </div>
-      <div class="stat-card">
-        <span id="statUnpaid">0</span>
-        <p>未付款</p>
-      </div>
-      <div class="stat-card">
-        <span id="statChannelOrders">0</span>
-        <p>通路訂單</p>
-      </div>
+      <div class="stat-card"><span id="statBuyers">0</span><p>購買人</p></div>
+      <div class="stat-card"><span id="statOrders">0</span><p>訂單</p></div>
+      <div class="stat-card"><span id="statUnpaid">0</span><p>未付款</p></div>
+      <div class="stat-card"><span id="statChannelOrders">0</span><p>通路訂單</p></div>
     </div>
 
     <div class="card">
@@ -51,9 +37,7 @@
   <section id="page-channel-orders" class="page">
     <div class="card">
       <h2>通路訂單</h2>
-      <button class="primary-btn" onclick="openChannelOrderForm()">
-        ＋ 新增通路訂單
-      </button>
+      <button class="primary-btn" onclick="openChannelOrderForm()">＋ 新增通路訂單</button>
     </div>
     <div id="channelOrderList"></div>
   </section>
@@ -61,9 +45,7 @@
   <section id="page-buyer-orders" class="page">
     <div class="card">
       <h2>購買人訂單</h2>
-      <button class="primary-btn" onclick="openBuyerOrderForm()">
-        ＋ 新增購買人訂單
-      </button>
+      <button class="primary-btn" onclick="openBuyerOrderForm()">＋ 新增購買人訂單</button>
       <input id="buyerOrderSearch" class="search-input" placeholder="搜尋購買人 / 藝人 / 通路" oninput="renderBuyerOrders()" />
     </div>
     <div id="buyerOrderList"></div>
