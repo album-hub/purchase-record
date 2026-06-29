@@ -528,3 +528,7 @@ button {
   font-weight: 800;
   margin-top: 8px;
 }
+
+.suggestion-primary .badge {
+  margin-right: 6px;
+}

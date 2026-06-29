@@ -1,9 +1,10 @@
-// Fansign Manager v4.1.1
+// Fansign Manager v4.2
 
 const STORAGE_KEY = "fansign_manager_v3";
 const BACKUP_KEY = "fansign_manager_v3_backups";
 const GROUP_COLLAPSE_KEY = "fansign_manager_v3_group_collapse";
 const BUYER_GROUP_COLLAPSE_KEY = "fansign_manager_v3_buyer_group_collapse";
+const RECENT_CHANNEL_ORDERS_KEY = "fansign_manager_v4_recent_channel_orders";
 let isRestoringBackup = false;
 
 function now() {
@@ -638,15 +639,99 @@ function renderChannelOrders() {
   });
 }
 
+
+function getRecentChannelOrderIds() {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_CHANNEL_ORDERS_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentChannelOrder(id) {
+  if (!id) return;
+  const order = byId("channelOrders", id);
+  if (!order) return;
+
+  const ids = getRecentChannelOrderIds().filter(itemId => itemId !== id);
+  ids.unshift(id);
+  localStorage.setItem(RECENT_CHANNEL_ORDERS_KEY, JSON.stringify(ids.slice(0, 8)));
+}
+
+function getLastChannelOrder() {
+  const ids = getRecentChannelOrderIds();
+  for (const id of ids) {
+    const order = byId("channelOrders", id);
+    if (order) return order;
+  }
+  return null;
+}
+
+function channelOrderSearchText(order) {
+  if (!order) return "";
+  const info = channelOrderShort(order);
+  return [
+    channelOrderLabel(order),
+    info.artist,
+    info.channel,
+    info.type,
+    info.batch,
+    info.orderPeriod,
+    info.date,
+    info.time,
+    order.status,
+    order.note
+  ].join(" ");
+}
+
+function scoreChannelOrder(order, query) {
+  const q = normalizeText(query);
+  if (!q) return 0;
+
+  const label = normalizeText(channelOrderLabel(order));
+  const text = normalizeText(channelOrderSearchText(order));
+
+  if (label === q) return 100;
+  if (label.startsWith(q)) return 80;
+  if (label.includes(q)) return 60;
+  if (text.includes(q)) return 40;
+
+  const parts = q.split(" ").filter(Boolean);
+  if (parts.length && parts.every(part => text.includes(part))) return 30;
+  return 0;
+}
+
+function channelOrderSuggestionHtml(order, tag = "") {
+  const used = registeredQty(order.id);
+  const remain = Number(order.totalQty) - used;
+  const tagHtml = tag ? `<span class="badge blue">${escapeHtml(tag)}</span>` : "";
+
+  return `
+    <div class="suggestion-item" onclick="selectChannelOrder('${order.id}')">
+      <div class="suggestion-primary">${tagHtml}${escapeHtml(channelOrderLabel(order))}</div>
+      <div class="suggestion-secondary">總 ${order.totalQty}｜已登記 ${used}｜剩餘 ${remain}｜${escapeHtml(order.status)}</div>
+    </div>
+  `;
+}
+
 function openBuyerOrderForm(editId = "") {
   if (db.channelOrders.length === 0) {
     alert("請先新增通路訂單");
     return;
   }
 
+  const isEdit = Boolean(editId);
   const order = db.buyerOrders.find(o => o.id === editId) || {};
   const buyerName = order.buyerId ? nameOf("buyers", order.buyerId) : "";
-  const selectedChannelOrder = order.channelOrderId ? byId("channelOrders", order.channelOrderId) : db.channelOrders[0];
+  const lastChannelOrder = getLastChannelOrder();
+  const selectedChannelOrder = isEdit
+    ? (order.channelOrderId ? byId("channelOrders", order.channelOrderId) : null)
+    : lastChannelOrder;
+
+  const channelInputValue = isEdit && selectedChannelOrder ? channelOrderLabel(selectedChannelOrder) : "";
+  const selectedHint = selectedChannelOrder
+    ? `${isEdit ? "目前選擇" : "已套用最近使用"}：${channelOrderLabel(selectedChannelOrder)}`
+    : "尚未選擇通路訂單";
 
   openModal(editId ? "編輯購買人訂單" : "新增購買人訂單", `
     <div class="form-field">
@@ -658,10 +743,11 @@ function openBuyerOrderForm(editId = "") {
 
     <div class="form-field">
       <label>對應通路訂單</label>
-      <input id="boChannelSearch" placeholder="搜尋藝人 / 通路 / 批次" value="${escapeAttr(selectedChannelOrder ? channelOrderLabel(selectedChannelOrder) : "")}" oninput="renderChannelOrderSuggestions()" onfocus="renderChannelOrderSuggestions()">
+      <input id="boChannelSearch" placeholder="搜尋藝人 / 通路 / 批次 / 日期" value="${escapeAttr(channelInputValue)}" oninput="renderChannelOrderSuggestions()" onfocus="renderChannelOrderSuggestions()">
       <input type="hidden" id="boChannelOrderId" value="${selectedChannelOrder ? selectedChannelOrder.id : ""}">
       <div id="channelOrderSuggestionBox" class="suggestion-box"></div>
-      <div id="selectedChannelHint" class="selected-hint">${selectedChannelOrder ? escapeHtml(channelOrderLabel(selectedChannelOrder)) : "尚未選擇通路訂單"}</div>
+      <div id="selectedChannelHint" class="selected-hint">${escapeHtml(selectedHint)}</div>
+      <p class="muted">新增時搜尋框會保持空白；可直接用最近使用，或輸入關鍵字更換通路。</p>
     </div>
 
     <div class="form-field">
@@ -738,8 +824,34 @@ function renderChannelOrderSuggestions() {
   if (!input || !box) return;
 
   const q = input.value.trim();
+  const recentIds = getRecentChannelOrderIds();
+
+  if (!q) {
+    const recentOrders = recentIds.map(id => byId("channelOrders", id)).filter(Boolean).slice(0, 5);
+
+    if (recentOrders.length === 0) {
+      box.innerHTML = `<div class="suggestion-item"><div class="suggestion-secondary">開始輸入即可搜尋通路訂單</div></div>`;
+      return;
+    }
+
+    box.innerHTML = `
+      <div class="suggestion-item"><div class="suggestion-secondary">最近使用</div></div>
+      ${recentOrders.map(order => channelOrderSuggestionHtml(order, "最近使用")).join("")}
+    `;
+    return;
+  }
+
   const matched = db.channelOrders
-    .filter(order => includesText(channelOrderLabel(order), q))
+    .map(order => ({ order, score: scoreChannelOrder(order, q) }))
+    .filter(item => item.score > 0)
+    .sort((a, b) => {
+      const aRecent = recentIds.indexOf(a.order.id);
+      const bRecent = recentIds.indexOf(b.order.id);
+      if (aRecent !== -1 && bRecent === -1) return -1;
+      if (aRecent === -1 && bRecent !== -1) return 1;
+      if (a.score !== b.score) return b.score - a.score;
+      return channelOrderLabel(a.order).localeCompare(channelOrderLabel(b.order));
+    })
     .slice(0, 12);
 
   if (matched.length === 0) {
@@ -747,16 +859,9 @@ function renderChannelOrderSuggestions() {
     return;
   }
 
-  box.innerHTML = matched.map(order => {
-    const used = registeredQty(order.id);
-    const remain = Number(order.totalQty) - used;
-
-    return `
-      <div class="suggestion-item" onclick="selectChannelOrder('${order.id}')">
-        <div class="suggestion-primary">${escapeHtml(channelOrderLabel(order))}</div>
-        <div class="suggestion-secondary">總 ${order.totalQty}｜已登記 ${used}｜剩餘 ${remain}｜${escapeHtml(order.status)}</div>
-      </div>
-    `;
+  box.innerHTML = matched.map(item => {
+    const tag = recentIds.includes(item.order.id) ? "最近使用" : "";
+    return channelOrderSuggestionHtml(item.order, tag);
   }).join("");
 }
 
@@ -764,9 +869,10 @@ function selectChannelOrder(id) {
   const order = byId("channelOrders", id);
   if (!order) return;
 
+  const label = channelOrderLabel(order);
   document.getElementById("boChannelOrderId").value = id;
-  document.getElementById("boChannelSearch").value = channelOrderLabel(order);
-  document.getElementById("selectedChannelHint").innerHTML = escapeHtml(channelOrderLabel(order));
+  document.getElementById("boChannelSearch").value = label;
+  document.getElementById("selectedChannelHint").innerHTML = escapeHtml(`目前選擇：${label}`);
   renderChannelOrderSuggestions();
 }
 
@@ -828,6 +934,7 @@ function saveBuyerOrder(editId = "") {
   if (editId) db.buyerOrders = db.buyerOrders.map(o => o.id === editId ? data : o);
   else db.buyerOrders.push(data);
 
+  saveRecentChannelOrder(channelOrderId);
   saveData();
   closeModal();
   renderAll();
