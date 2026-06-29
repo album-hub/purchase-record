@@ -1,4 +1,4 @@
-// Fansign Manager v4.1
+// Fansign Manager v4.1.1
 
 const STORAGE_KEY = "fansign_manager_v3";
 const BACKUP_KEY = "fansign_manager_v3_backups";
@@ -918,15 +918,21 @@ function renderBuyerOrderCard(order, compact = false) {
     <div class="order-card ${compact ? "compact-buyer-order" : ""}">
       <div class="order-title">👤 ${escapeHtml(nameOf("buyers", order.buyerId))}</div>
       <p class="order-subtitle">${co ? escapeHtml(channelOrderLabel(co)) : "通路訂單不存在"}</p>
-      <span class="badge blue">${order.qty} 張</span>\n      <span class="badge amount-badge">${money(order.amount)}</span>
-      <button class="pay-toggle ${order.paid ? "primary-btn" : "danger-btn"}" onclick="togglePaid('${order.id}')">
-        ${order.paid ? "✅ 已付款" : "❌ 未付款"}
-      </button>
-      <button class="ship-toggle ${order.shipped ? "primary-btn" : "secondary-btn"}" onclick="toggleShipped('${order.id}')">
-        ${order.shipped ? "🚚 已出貨" : "📦 未出貨"}
-      </button>
+      <span class="badge blue">${order.qty} 張</span>
+      <span class="badge amount-badge">${money(order.amount)}</span>
+
+      <div class="button-row">
+        <button class="pay-toggle ${order.paid ? "primary-btn" : "danger-btn"}" onclick="togglePaid('${order.id}')">
+          ${order.paid ? "✅ 已付款" : "❌ 未付款"}
+        </button>
+        <button class="ship-toggle ${order.shipped ? "primary-btn" : "secondary-btn"}" onclick="toggleShipped('${order.id}')">
+          ${order.shipped ? "🚚 已出貨" : "📦 未出貨"}
+        </button>
+      </div>
+
       ${isBuyerOrderArchived(order) ? `<p class="archived-note">已付款且已出貨，已進入封存</p>` : ""}
       ${order.note ? `<p class="muted">備註：${escapeHtml(order.note)}</p>` : ""}
+
       <div class="button-row">
         <button class="secondary-btn" onclick="openBuyerOrderForm('${order.id}')">編輯</button>
         <button class="danger-btn" onclick="deleteBuyerOrder('${order.id}')">刪除</button>
