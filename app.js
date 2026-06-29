@@ -1,4 +1,4 @@
-// Fansign Manager v3.9.1
+// Fansign Manager v4.0
 
 const STORAGE_KEY = "fansign_manager_v3";
 const BACKUP_KEY = "fansign_manager_v3_backups";
@@ -146,6 +146,23 @@ function money(value) {
   return "$" + num.toLocaleString();
 }
 
+function normalizeText(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase();
+}
+
+function sameText(a, b) {
+  return normalizeText(a) === normalizeText(b);
+}
+
+function includesText(text, query) {
+  const q = normalizeText(query);
+  if (!q) return true;
+  return normalizeText(text).includes(q);
+}
+
 function escapeAttr(text) {
   return escapeHtml(text).replace(/`/g, "&#96;");
 }
@@ -169,9 +186,15 @@ function switchPage(page, btn) {
 
 function addMaster(collection, inputId) {
   const input = document.getElementById(inputId);
-  const name = input.value.trim();
+  const name = input.value.trim().replace(/\s+/g, " ");
+
   if (!name) return alert("請輸入名稱");
-  if (db[collection].some(item => item.name === name)) return alert("這個名稱已存在");
+
+  const existed = db[collection].find(item => sameText(item.name, name));
+  if (existed) {
+    alert(`這個名稱已存在：${existed.name}`);
+    return;
+  }
 
   db[collection].push({
     id: uid(collection),
@@ -189,10 +212,18 @@ function addMaster(collection, inputId) {
 function renameMaster(collection, id) {
   const item = byId(collection, id);
   if (!item) return;
+
   const newName = prompt("修改名稱", item.name);
   if (!newName || !newName.trim()) return;
-  const clean = newName.trim();
-  if (db[collection].some(i => i.id !== id && i.name === clean)) return alert("這個名稱已存在");
+
+  const clean = newName.trim().replace(/\s+/g, " ");
+  const existed = db[collection].find(i => i.id !== id && sameText(i.name, clean));
+
+  if (existed) {
+    alert(`這個名稱已存在：${existed.name}`);
+    return;
+  }
+
   item.name = clean;
   item.updatedAt = now();
   saveData();
@@ -278,6 +309,26 @@ function openChannelOrderForm(editId = "") {
       <input id="coBatch" placeholder="例如 第一批 / 第二批" value="${escapeAttr(order.batch || "")}">
     </div>
     <div class="form-field">
+      <label>下單開始日期</label>
+      <input id="coOrderStartDate" type="date" value="${escapeAttr(order.orderStartDate || "")}">
+    </div>
+
+    <div class="form-field">
+      <label>下單開始時間</label>
+      <input id="coOrderStartTime" type="time" value="${escapeAttr(order.orderStartTime || "")}">
+    </div>
+
+    <div class="form-field">
+      <label>下單結束日期</label>
+      <input id="coOrderEndDate" type="date" value="${escapeAttr(order.orderEndDate || "")}">
+    </div>
+
+    <div class="form-field">
+      <label>下單結束時間</label>
+      <input id="coOrderEndTime" type="time" value="${escapeAttr(order.orderEndTime || "")}">
+    </div>
+
+    <div class="form-field">
       <label>簽售日期</label>
       <input id="coDate" type="date" value="${escapeAttr(order.fansignDate || "")}">
     </div>
@@ -312,6 +363,10 @@ function saveChannelOrder(editId = "") {
     channelId: document.getElementById("coChannel").value,
     albumTypeId: document.getElementById("coType").value,
     batch: document.getElementById("coBatch").value.trim(),
+    orderStartDate: document.getElementById("coOrderStartDate")?.value || "",
+    orderStartTime: document.getElementById("coOrderStartTime")?.value || "",
+    orderEndDate: document.getElementById("coOrderEndDate")?.value || "",
+    orderEndTime: document.getElementById("coOrderEndTime")?.value || "",
     fansignDate: document.getElementById("coDate").value,
     fansignTime: document.getElementById("coTime").value,
     totalQty: Number(document.getElementById("coTotal").value || 0),
@@ -331,7 +386,7 @@ function saveChannelOrder(editId = "") {
     o.artistId === data.artistId &&
     o.channelId === data.channelId &&
     o.albumTypeId === data.albumTypeId &&
-    o.batch === data.batch &&
+    sameText(o.batch, data.batch) &&
     o.fansignDate === data.fansignDate &&
     o.fansignTime === data.fansignTime
   );
@@ -368,8 +423,18 @@ function cycleChannelStatus(id) {
   renderAll();
 }
 
+function orderPeriodText(order) {
+  const start = `${order.orderStartDate || ""}${order.orderStartTime ? " " + order.orderStartTime : ""}`.trim();
+  const end = `${order.orderEndDate || ""}${order.orderEndTime ? " " + order.orderEndTime : ""}`.trim();
+
+  if (start && end) return `${start} ～ ${end}`;
+  if (start) return `${start} 開始`;
+  if (end) return `${end} 截止`;
+  return "未設定";
+}
+
 function channelOrderLabel(order) {
-  return `${nameOf("artists", order.artistId)}｜${nameOf("channels", order.channelId)}｜${nameOf("albumTypes", order.albumTypeId)}｜${order.batch}${order.fansignDate ? "｜" + order.fansignDate : ""}${order.fansignTime ? " " + order.fansignTime : ""}`;
+  return `${nameOf("artists", order.artistId)}｜${nameOf("channels", order.channelId)}｜${nameOf("albumTypes", order.albumTypeId)}｜${order.batch}${order.orderStartDate || order.orderEndDate ? "｜下單 " + orderPeriodText(order) : ""}${order.fansignDate ? "｜簽售 " + order.fansignDate : ""}${order.fansignTime ? " " + order.fansignTime : ""}`;
 }
 
 function channelOrderShort(order) {
@@ -378,6 +443,7 @@ function channelOrderShort(order) {
     channel: nameOf("channels", order.channelId),
     type: nameOf("albumTypes", order.albumTypeId),
     batch: order.batch,
+    orderPeriod: orderPeriodText(order),
     date: order.fansignDate || "未設定日期",
     time: order.fansignTime || ""
   };
@@ -495,7 +561,7 @@ function renderChannelOrders() {
 
   const filtered = db.channelOrders.filter(order => {
     const text = channelOrderLabel(order);
-    return !q || text.includes(q);
+    return includesText(text, q);
   });
 
   if (filtered.length === 0) {
@@ -512,7 +578,8 @@ function renderChannelOrders() {
           <div class="order-subtitle">
             🏪 ${escapeHtml(info.channel)}<br>
             💿 ${escapeHtml(info.type)}｜📦 ${escapeHtml(info.batch)}<br>
-            📅 ${escapeHtml(info.date)} ${escapeHtml(info.time)}
+            🕒 下單 ${escapeHtml(info.orderPeriod)}<br>
+            📅 簽售 ${escapeHtml(info.date)} ${escapeHtml(info.time)}
           </div>
           ${renderSingleChannelOrderCard(order, true)}
         </div>
@@ -631,7 +698,7 @@ function renderBuyerSuggestions() {
 
   const q = input.value.trim();
   const matched = db.buyers
-    .filter(b => !q || b.name.includes(q))
+    .filter(b => includesText(b.name, q))
     .slice(0, 10);
 
   let html = "";
@@ -644,7 +711,7 @@ function renderBuyerSuggestions() {
     `;
   });
 
-  if (q && !db.buyers.some(b => b.name === q)) {
+  if (q && !db.buyers.some(b => sameText(b.name, q))) {
     html += `
       <div class="suggestion-item" onclick="selectBuyerName('${jsString(q)}')">
         <div class="suggestion-primary">＋ 新增「${escapeHtml(q)}」</div>
@@ -669,7 +736,7 @@ function renderChannelOrderSuggestions() {
 
   const q = input.value.trim();
   const matched = db.channelOrders
-    .filter(order => !q || channelOrderLabel(order).includes(q))
+    .filter(order => includesText(channelOrderLabel(order), q))
     .slice(0, 12);
 
   if (matched.length === 0) {
@@ -701,12 +768,21 @@ function selectChannelOrder(id) {
 }
 
 function findOrCreateBuyer(name) {
-  const clean = name.trim();
-  let buyer = db.buyers.find(b => b.name === clean);
+  const clean = name.trim().replace(/\s+/g, " ");
+  let buyer = db.buyers.find(b => sameText(b.name, clean));
+
   if (!buyer) {
-    buyer = { id: uid("buyer"), name: clean, note: "", createdAt: now(), updatedAt: now() };
+    buyer = {
+      id: uid("buyer"),
+      name: clean,
+      note: "",
+      createdAt: now(),
+      updatedAt: now()
+    };
+
     db.buyers.push(buyer);
   }
+
   return buyer;
 }
 
@@ -850,7 +926,7 @@ function renderBuyerOrders() {
     const co = byId("channelOrders", order.channelOrderId);
     const buyer = nameOf("buyers", order.buyerId);
     const text = `${buyer} ${co ? channelOrderLabel(co) : ""}`;
-    return !q || text.includes(q);
+    return includesText(text, q);
   });
 
   if (filtered.length === 0) {
@@ -972,18 +1048,18 @@ function renderSearch() {
   const results = [];
 
   db.buyers.forEach(b => {
-    if (b.name.includes(q)) results.push(`👤 ${b.name}`);
+    if (includesText(b.name, q)) results.push(`👤 ${b.name}`);
   });
 
   db.channelOrders.forEach(o => {
     const label = channelOrderLabel(o);
-    if (label.includes(q)) results.push(`📦 ${label}`);
+    if (includesText(label, q)) results.push(`📦 ${label}`);
   });
 
   db.buyerOrders.forEach(o => {
     const co = byId("channelOrders", o.channelOrderId);
     const text = `${nameOf("buyers", o.buyerId)} ${co ? channelOrderLabel(co) : ""}`;
-    if (text.includes(q)) results.push(`🛒 ${text}`);
+    if (includesText(text, q)) results.push(`🛒 ${text}`);
   });
 
   box.innerHTML = `
