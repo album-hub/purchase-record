@@ -1,4 +1,4 @@
-// Fansign Manager v4.0
+// Fansign Manager v4.1
 
 const STORAGE_KEY = "fansign_manager_v3";
 const BACKUP_KEY = "fansign_manager_v3_backups";
@@ -36,7 +36,7 @@ const defaultData = {
 };
 
 let db = loadData();
-let buyerOrderFilter = "all";
+let buyerOrderFilter = "active";
 
 function loadData() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -511,6 +511,9 @@ function renderBuyerMiniList(channelOrderId) {
           <button class="pay-toggle ${order.paid ? "primary-btn" : "danger-btn"}" onclick="togglePaid('${order.id}')">
             ${order.paid ? "✅" : "❌"}
           </button>
+          <button class="pay-toggle ${order.shipped ? "primary-btn" : "secondary-btn"}" onclick="toggleShipped('${order.id}')">
+            ${order.shipped ? "🚚" : "📦"}
+          </button>
         </div>
       `).join("")}
     </div>
@@ -816,6 +819,7 @@ function saveBuyerOrder(editId = "") {
     qty,
     amount,
     paid,
+    shipped: editId ? Boolean(byId("buyerOrders", editId).shipped) : false,
     note,
     createdAt: editId ? byId("buyerOrders", editId).createdAt : now(),
     updatedAt: now()
@@ -838,6 +842,19 @@ function togglePaid(id) {
   renderAll();
 }
 
+function isBuyerOrderArchived(order) {
+  return Boolean(order.paid && order.shipped);
+}
+
+function toggleShipped(id) {
+  const order = byId("buyerOrders", id);
+  if (!order) return;
+  order.shipped = !order.shipped;
+  order.updatedAt = now();
+  saveData();
+  renderAll();
+}
+
 function deleteBuyerOrder(id) {
   if (!confirm("確定刪除這筆購買人訂單嗎？")) return;
   db.buyerOrders = db.buyerOrders.filter(o => o.id !== id);
@@ -849,9 +866,11 @@ function setBuyerOrderFilter(filter) {
   buyerOrderFilter = filter;
 
   const map = {
-    all: "buyerFilterAll",
+    active: "buyerFilterActive",
     unpaid: "buyerFilterUnpaid",
-    paid: "buyerFilterPaid"
+    paid: "buyerFilterPaid",
+    archived: "buyerFilterArchived",
+    all: "buyerFilterAll"
   };
 
   Object.values(map).forEach(id => {
@@ -903,6 +922,10 @@ function renderBuyerOrderCard(order, compact = false) {
       <button class="pay-toggle ${order.paid ? "primary-btn" : "danger-btn"}" onclick="togglePaid('${order.id}')">
         ${order.paid ? "✅ 已付款" : "❌ 未付款"}
       </button>
+      <button class="ship-toggle ${order.shipped ? "primary-btn" : "secondary-btn"}" onclick="toggleShipped('${order.id}')">
+        ${order.shipped ? "🚚 已出貨" : "📦 未出貨"}
+      </button>
+      ${isBuyerOrderArchived(order) ? `<p class="archived-note">已付款且已出貨，已進入封存</p>` : ""}
       ${order.note ? `<p class="muted">備註：${escapeHtml(order.note)}</p>` : ""}
       <div class="button-row">
         <button class="secondary-btn" onclick="openBuyerOrderForm('${order.id}')">編輯</button>
@@ -920,8 +943,12 @@ function renderBuyerOrders() {
   box.innerHTML = "";
 
   const filtered = db.buyerOrders.filter(order => {
-    if (buyerOrderFilter === "unpaid" && order.paid) return false;
-    if (buyerOrderFilter === "paid" && !order.paid) return false;
+    const archived = isBuyerOrderArchived(order);
+
+    if (buyerOrderFilter === "active" && archived) return false;
+    if (buyerOrderFilter === "unpaid" && (order.paid || archived)) return false;
+    if (buyerOrderFilter === "paid" && (!order.paid || archived)) return false;
+    if (buyerOrderFilter === "archived" && !archived) return false;
 
     const co = byId("channelOrders", order.channelOrderId);
     const buyer = nameOf("buyers", order.buyerId);
@@ -999,11 +1026,15 @@ function renderHome() {
   const unpaid = unpaidOrders.length;
   const notOrdered = db.channelOrders.filter(o => o.status === "未下單").length;
   const notArrived = db.channelOrders.filter(o => o.status === "未到貨").length;
+  const archived = db.buyerOrders.filter(o => isBuyerOrderArchived(o)).length;
+  const unshipped = db.buyerOrders.filter(o => !o.shipped && !isBuyerOrderArchived(o)).length;
 
   alerts.innerHTML = `
     <p><span class="badge red clickable-badge" onclick="goToUnpaidOrders()">未付款 ${unpaid}</span></p>
     <p><span class="badge orange">未下單通路 ${notOrdered}</span></p>
     <p><span class="badge blue">未到貨通路 ${notArrived}</span></p>
+    <p><span class="badge orange">未出貨 ${unshipped}</span></p>
+    <p><span class="badge green">已封存 ${archived}</span></p>
   `;
 
   renderUpcomingFansigns();
