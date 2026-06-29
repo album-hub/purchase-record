@@ -74,9 +74,11 @@
       <button class="primary-btn" onclick="openBuyerOrderForm()">＋ 新增購買人訂單</button>
       <input id="buyerOrderSearch" class="search-input" placeholder="搜尋購買人 / 藝人 / 通路" oninput="renderBuyerOrders()" />
       <div class="filter-row">
-        <button id="buyerFilterAll" class="filter-btn active" onclick="setBuyerOrderFilter('all')">全部</button>
+        <button id="buyerFilterActive" class="filter-btn active" onclick="setBuyerOrderFilter('active')">進行中</button>
         <button id="buyerFilterUnpaid" class="filter-btn" onclick="setBuyerOrderFilter('unpaid')">未付款</button>
         <button id="buyerFilterPaid" class="filter-btn" onclick="setBuyerOrderFilter('paid')">已付款</button>
+        <button id="buyerFilterArchived" class="filter-btn" onclick="setBuyerOrderFilter('archived')">已封存</button>
+        <button id="buyerFilterAll" class="filter-btn" onclick="setBuyerOrderFilter('all')">全部</button>
       </div>
     </div>
     <div id="buyerOrderList"></div>
@@ -93,7 +95,7 @@
   <section id="page-settings" class="page">
     <div class="card">
       <h2>設定</h2>
-      <p class="muted">管理會重複使用的資料。V4.0 重構版｜大小寫不敏感搜尋</p>
+      <p class="muted">管理會重複使用的資料。V4.1 配送簡單版｜大小寫不敏感搜尋</p>
     </div>
 
     <div class="card">
