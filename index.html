@@ -1,585 +1,175 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>購買紀錄管理 V2.3</title>
-<style>
-:root{--bg:#f2f2f7;--card:#fff;--text:#111;--sub:#666;--blue:#007aff;--green:#34c759;--red:#ff3b30;--orange:#ff9500;--gray:#8e8e93;--line:#e5e5ea}
-*{box-sizing:border-box}
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--text)}
-header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);padding:16px;text-align:center;font-size:22px;font-weight:800;border-bottom:1px solid var(--line)}
-.container{max-width:900px;margin:auto;padding:14px 14px 90px}
-.card{background:var(--card);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
-h2{font-size:18px;margin:0 0 12px}
-h3{font-size:16px;margin:16px 0 8px}
-input,select,textarea,button{width:100%;padding:12px;margin:6px 0;font-size:16px;border-radius:12px;border:1px solid var(--line);font-family:inherit}
-textarea{min-height:70px;resize:vertical}
-button{border:none;font-weight:700}
-.primary{background:var(--blue);color:white}.green{background:var(--green);color:white}.red{background:var(--red);color:white}.orange{background:var(--orange);color:white}.gray{background:var(--gray);color:white}
-.row{display:flex;gap:8px}.row button{flex:1}
-.tabs{position:fixed;bottom:0;left:0;right:0;max-width:900px;margin:auto;display:flex;background:white;border-top:1px solid var(--line);z-index:20}
-.tabs button{border-radius:0;background:white;color:#666;padding:10px 4px;font-size:13px}.tabs button.active{color:var(--blue);font-weight:900}
-.page{display:none}.page.active{display:block}
-.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.stat{background:#f7f7f9;border-radius:16px;padding:14px}.stat .num{font-size:26px;font-weight:900}.stat .label{color:var(--sub);font-size:14px}
-.badge{display:inline-block;padding:5px 9px;border-radius:999px;font-size:13px;margin:3px 3px 3px 0;background:#eee}
-.badge.blue{background:#e5f1ff;color:#007aff}.badge.green{background:#e8f8ee;color:#16803c}.badge.red{background:#ffecec;color:#c62828}.badge.orange{background:#fff3df;color:#b35b00}
-.item{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}.item-title{font-size:17px;font-weight:800}.small{color:var(--sub);font-size:14px}
-.order-card{background:#fafafa;border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:10px}
-.toggle-title{display:flex;justify-content:space-between;align-items:center}
-.manager-row{display:grid;grid-template-columns:1fr 72px 72px;gap:8px;align-items:center;border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
-.manager-name{font-weight:800;word-break:break-all}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fansign Manager</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
-<header>購買紀錄管理 V2.3</header>
 
-<div class="container">
+<header class="app-header">
+  <h1>Fansign Manager</h1>
+  <p>簽售代購管理系統</p>
+</header>
 
-<section id="page-dashboard" class="page active">
-  <div class="card">
-    <h2>總覽</h2>
-    <div class="stat-grid">
-      <div class="stat"><div class="num" id="statBuyers">0</div><div class="label">購買人</div></div>
-      <div class="stat"><div class="num" id="statOrders">0</div><div class="label">購買人訂單</div></div>
-      <div class="stat"><div class="num" id="statQty">0</div><div class="label">已登記數量</div></div>
-      <div class="stat"><div class="num" id="statPreorder">0</div><div class="label">預購筆數</div></div>
+<main class="app-main">
+
+  <section id="page-home" class="page active">
+    <div class="card hero-card">
+      <h2>首頁</h2>
+      <button class="primary-btn" onclick="openBuyerOrderForm()">＋ 新增購買人訂單</button>
     </div>
-  </div>
-  <div class="card">
-    <h2>藝人／通路摘要</h2>
-    <div id="dashboardList"></div>
-  </div>
-</section>
 
-<section id="page-channel" class="page">
-  <div class="card">
-    <h2>新增／編輯通路總訂單</h2>
-    <select id="channelArtistSelect" onchange="toggleNewArtist('channel')"></select>
-    <input id="channelNewArtist" placeholder="新增藝人名稱" style="display:none">
-    <select id="channelNameSelect" onchange="toggleNewChannel('channel')"></select>
-    <input id="channelNewName" placeholder="新增通路名稱" style="display:none">
-    <input id="channelTotal" type="number" min="0" placeholder="總下單數量，例如 20">
-    <select id="channelStatus">
-      <option value="未下單">未下單</option>
-      <option value="未到貨">未到貨</option>
-      <option value="已到貨">已到貨</option>
-      <option value="已完成">已完成</option>
-    </select>
-    <textarea id="channelNote" placeholder="通路備註，可不填"></textarea>
-    <button class="primary" onclick="saveChannelOrder()">儲存通路總訂單</button>
-    <button class="gray" onclick="clearChannelForm()">清空</button>
-  </div>
-  <div class="card">
-    <h2>通路總訂單</h2>
-    <input id="searchChannel" placeholder="搜尋藝人或通路" oninput="renderAll()">
-    <div id="channelList"></div>
-  </div>
-</section>
+    <div class="grid dashboard-grid">
+      <div class="stat-card"><span id="statOrders">0</span><p>購買人訂單</p></div>
+      <div class="stat-card"><span id="statUnpaid">0</span><p>未付款</p></div>
+      <div class="stat-card"><span id="statNotOrdered">0</span><p>未下單</p></div>
+      <div class="stat-card"><span id="statNotArrived">0</span><p>未到貨</p></div>
+      <div class="stat-card"><span id="statTodayFansign">0</span><p>今天簽售</p></div>
+      <div class="stat-card"><span id="statMonthFansign">0</span><p>本月簽售</p></div>
+    </div>
 
-<section id="page-buyer" class="page">
-  <div class="card">
-    <h2>新增／編輯購買人訂單</h2>
-    <input id="buyerName" placeholder="購買人姓名">
-    <select id="buyerArtistSelect" onchange="toggleNewArtist('buyer')"></select>
-    <input id="buyerNewArtist" placeholder="新增藝人名稱" style="display:none">
-    <select id="buyerChannelSelect" onchange="toggleNewChannel('buyer')"></select>
-    <input id="buyerNewChannel" placeholder="新增通路名稱" style="display:none">
-    <input id="buyerQuantity" type="number" min="1" placeholder="購買數量">
-    <select id="buyerStatus">
-      <option value="預購">預購</option>
-      <option value="未付款">未付款</option>
-      <option value="已付款">已付款</option>
-      <option value="取消">取消</option>
-    </select>
-    <textarea id="buyerNote" placeholder="購買人備註，可不填"></textarea>
-    <button class="green" onclick="saveBuyerOrder()">儲存購買人訂單</button>
-    <button class="gray" onclick="clearBuyerForm()">清空</button>
-  </div>
-  <div class="card">
-    <h2>購買人訂單</h2>
-    <input id="searchBuyer" placeholder="搜尋購買人姓名" oninput="renderAll()">
-    <div id="buyerList"></div>
-  </div>
-</section>
+    <div class="card">
+      <h2>金額統計</h2>
+      <div class="money-grid">
+        <div>
+          <strong id="statTotalAmount">$0</strong>
+          <p>總金額</p>
+        </div>
+        <div>
+          <strong id="statUnpaidAmount">$0</strong>
+          <p>未付款金額</p>
+        </div>
+      </div>
+    </div>
 
-<section id="page-setting" class="page">
-  <div class="card">
-    <h2>藝人管理</h2>
-    <input id="newArtistManagerInput" placeholder="新增藝人名稱">
-    <button class="primary" onclick="addArtistFromManager()">新增藝人</button>
-    <div id="artistManagerList"></div>
-  </div>
+    <div class="card">
+      <h2>快速提醒</h2>
+      <div id="homeAlerts"></div>
+    </div>
 
-  <div class="card">
-    <h2>通路管理</h2>
-    <input id="newChannelManagerInput" placeholder="新增通路名稱">
-    <button class="primary" onclick="addChannelFromManager()">新增通路</button>
-    <div id="channelManagerList"></div>
-  </div>
+    <div class="card">
+      <h2>最近簽售</h2>
+      <div id="upcomingFansigns"></div>
+    </div>
+  </section>
 
-  <div class="card">
-    <h2>備份／還原</h2>
-    <button class="primary" onclick="exportData()">產生備份 JSON</button>
-    <textarea id="importBox" placeholder="備份 JSON 會出現在這裡，也可以貼上舊備份"></textarea>
-    <button class="orange" onclick="importData()">還原備份</button>
-    <button class="red" onclick="clearAllData()">清空所有資料</button>
-  </div>
-</section>
+  <section id="page-channel-orders" class="page">
+    <div class="card">
+      <h2>通路訂單</h2>
+      <button class="primary-btn" onclick="openChannelOrderForm()">＋ 新增通路訂單</button>
+      <input id="channelOrderSearch" class="search-input" placeholder="搜尋藝人 / 通路 / 批次" oninput="renderChannelOrders()" />
+    </div>
+    <div id="channelOrderList"></div>
+    <div class="card">
+      <h2>通路時間軸</h2>
+      <div id="channelTimeline"></div>
+    </div>
+  </section>
 
+  <section id="page-buyer-orders" class="page">
+    <div class="card">
+      <h2>購買人訂單</h2>
+      <button class="primary-btn" onclick="openBuyerOrderForm()">＋ 新增購買人訂單</button>
+      <input id="buyerOrderSearch" class="search-input" placeholder="搜尋購買人 / 藝人 / 通路" oninput="renderBuyerOrders()" />
+      <div class="filter-row">
+        <button id="buyerFilterActive" class="filter-btn active" onclick="setBuyerOrderFilter('active')">進行中</button>
+        <button id="buyerFilterUnpaid" class="filter-btn" onclick="setBuyerOrderFilter('unpaid')">未付款</button>
+        <button id="buyerFilterPaid" class="filter-btn" onclick="setBuyerOrderFilter('paid')">已付款</button>
+        <button id="buyerFilterArchived" class="filter-btn" onclick="setBuyerOrderFilter('archived')">已封存</button>
+        <button id="buyerFilterAll" class="filter-btn" onclick="setBuyerOrderFilter('all')">全部</button>
+      </div>
+    </div>
+    <div id="buyerOrderList"></div>
+  </section>
+
+  <section id="page-search" class="page">
+    <div class="card">
+      <h2>搜尋</h2>
+      <input id="globalSearch" class="search-input" placeholder="搜尋購買人、藝人、通路、批次" oninput="renderSearch()" />
+    </div>
+    <div id="searchResults"></div>
+  </section>
+
+  <section id="page-settings" class="page">
+    <div class="card">
+      <h2>設定</h2>
+      <p class="muted">管理會重複使用的資料。V4.2 搜尋重構版</p>
+    </div>
+
+    <div class="card">
+      <h3>🎤 藝人管理</h3>
+      <div class="row">
+        <input id="artistInput" placeholder="新增藝人，例如 Yuju" />
+        <button onclick="addMaster('artists','artistInput')">新增</button>
+      </div>
+      <div id="artistList"></div>
+    </div>
+
+    <div class="card">
+      <h3>🏪 通路管理</h3>
+      <div class="row">
+        <input id="channelInput" placeholder="新增通路，例如 Soundwave" />
+        <button onclick="addMaster('channels','channelInput')">新增</button>
+      </div>
+      <div id="channelList"></div>
+    </div>
+
+    <div class="card">
+      <h3>💿 專輯類型管理</h3>
+      <div class="row">
+        <input id="albumTypeInput" placeholder="新增類型，例如 線上" />
+        <button onclick="addMaster('albumTypes','albumTypeInput')">新增</button>
+      </div>
+      <div id="albumTypeList"></div>
+    </div>
+
+    <div class="card">
+      <h3>👤 購買人管理</h3>
+      <div class="row">
+        <input id="buyerInput" placeholder="新增購買人，例如 小明" />
+        <button onclick="addMaster('buyers','buyerInput')">新增</button>
+      </div>
+      <div id="buyerList"></div>
+    </div>
+
+    <div class="card">
+      <h3>💾 備份 / 還原</h3>
+      <button class="secondary-btn" onclick="exportBackup()">產生備份</button>
+      <textarea id="backupBox" placeholder="備份內容會出現在這裡，也可以貼上備份資料"></textarea>
+      <button class="primary-btn" onclick="importBackup()">還原備份</button>
+      <button class="danger-btn" onclick="clearAll()">清空全部資料</button>
+    </div>
+
+    <div class="card">
+      <h3>🕘 自動備份紀錄</h3>
+      <p class="muted">系統會自動保留最近 10 次資料變更。</p>
+      <div id="autoBackupList"></div>
+    </div>
+
+  </section>
+
+</main>
+
+<nav class="bottom-nav">
+  <button class="active" onclick="switchPage('home', this)">🏠<br>首頁</button>
+  <button onclick="switchPage('channel-orders', this)">📦<br>通路</button>
+  <button onclick="switchPage('buyer-orders', this)">👤<br>訂單</button>
+  <button onclick="switchPage('search', this)">🔍<br>搜尋</button>
+  <button onclick="switchPage('settings', this)">⚙️<br>設定</button>
+</nav>
+
+<div id="modal" class="modal hidden">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2 id="modalTitle">新增</h2>
+      <button class="icon-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
 </div>
 
-<div class="tabs">
-  <button class="active" onclick="switchPage('dashboard',this)">🏠<br>總覽</button>
-  <button onclick="switchPage('channel',this)">🎤<br>通路</button>
-  <button onclick="switchPage('buyer',this)">👤<br>購買人</button>
-  <button onclick="switchPage('setting',this)">⚙️<br>設定</button>
-</div>
-
-<script>
-let channelOrders = JSON.parse(localStorage.getItem("v23_channelOrders")) || JSON.parse(localStorage.getItem("v22_channelOrders")) || [];
-let buyerOrders = JSON.parse(localStorage.getItem("v23_buyerOrders")) || JSON.parse(localStorage.getItem("v22_buyerOrders")) || [];
-let artistList = JSON.parse(localStorage.getItem("v23_artistList")) || JSON.parse(localStorage.getItem("v22_artistList")) || ["Yuju","Yerin","GFRIEND"];
-let channelList = JSON.parse(localStorage.getItem("v23_channelList")) || JSON.parse(localStorage.getItem("v22_channelList")) || ["Soundwave","Makestar","Everline","Apple Music"];
-let collapsedBuyers = JSON.parse(localStorage.getItem("v23_collapsedBuyers")) || JSON.parse(localStorage.getItem("v22_collapsedBuyers")) || {};
-
-let editingChannelIndex = null;
-let editingBuyerIndex = null;
-
-function saveData(){
-  localStorage.setItem("v23_channelOrders",JSON.stringify(channelOrders));
-  localStorage.setItem("v23_buyerOrders",JSON.stringify(buyerOrders));
-  localStorage.setItem("v23_artistList",JSON.stringify(artistList));
-  localStorage.setItem("v23_channelList",JSON.stringify(channelList));
-  localStorage.setItem("v23_collapsedBuyers",JSON.stringify(collapsedBuyers));
-}
-
-function switchPage(page,btn){
-  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
-  document.getElementById("page-"+page).classList.add("active");
-  document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active"));
-  btn.classList.add("active");
-  window.scrollTo({top:0,behavior:"smooth"});
-}
-
-function unique(arr){return [...new Set(arr.map(v => (v||"").trim()).filter(Boolean))]}
-
-function refreshLists(){
-  artistList = unique([...artistList,...channelOrders.map(o=>o.artist),...buyerOrders.map(o=>o.artist)]);
-  channelList = unique([...channelList,...channelOrders.map(o=>o.channel),...buyerOrders.map(o=>o.channel)]);
-}
-
-function fillSelect(selectId,list,placeholder){
-  const el=document.getElementById(selectId);
-  const old=el.value;
-  el.innerHTML = `<option value="">${placeholder}</option>`;
-  list.forEach(v=>el.innerHTML += `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`);
-  el.innerHTML += `<option value="__new__">＋新增</option>`;
-  if([...el.options].some(o=>o.value===old)) el.value=old;
-}
-
-function renderSelects(){
-  refreshLists();
-  fillSelect("channelArtistSelect",artistList,"選擇藝人");
-  fillSelect("channelNameSelect",channelList,"選擇通路");
-  fillSelect("buyerArtistSelect",artistList,"選擇藝人");
-  fillSelect("buyerChannelSelect",channelList,"選擇通路");
-}
-
-function toggleNewArtist(type){
-  document.getElementById(type+"NewArtist").style.display =
-    document.getElementById(type+"ArtistSelect").value==="__new__" ? "block":"none";
-}
-
-function toggleNewChannel(type){
-  const id = type==="channel" ? "channelNewName" : "buyerNewChannel";
-  const selectId = type==="channel" ? "channelNameSelect" : "buyerChannelSelect";
-  document.getElementById(id).style.display =
-    document.getElementById(selectId).value==="__new__" ? "block":"none";
-}
-
-function getArtist(type){
-  const select=document.getElementById(type+"ArtistSelect").value;
-  if(select==="__new__") return document.getElementById(type+"NewArtist").value.trim();
-  return select;
-}
-
-function getChannel(type){
-  if(type==="channel"){
-    const select=document.getElementById("channelNameSelect").value;
-    if(select==="__new__") return document.getElementById("channelNewName").value.trim();
-    return select;
-  }else{
-    const select=document.getElementById("buyerChannelSelect").value;
-    if(select==="__new__") return document.getElementById("buyerNewChannel").value.trim();
-    return select;
-  }
-}
-
-function getRegistered(artist,channel){
-  return buyerOrders.filter(o=>o.artist===artist && o.channel===channel && o.status!=="取消")
-    .reduce((s,o)=>s+Number(o.quantity),0);
-}
-
-function findChannelOrder(artist,channel){
-  return channelOrders.find(o=>o.artist===artist && o.channel===channel);
-}
-
-function clearChannelForm(){
-  editingChannelIndex=null;
-  document.getElementById("channelArtistSelect").value="";
-  document.getElementById("channelNameSelect").value="";
-  document.getElementById("channelNewArtist").value="";
-  document.getElementById("channelNewName").value="";
-  document.getElementById("channelNewArtist").style.display="none";
-  document.getElementById("channelNewName").style.display="none";
-  document.getElementById("channelTotal").value="";
-  document.getElementById("channelStatus").value="未下單";
-  document.getElementById("channelNote").value="";
-}
-
-function clearBuyerForm(){
-  editingBuyerIndex=null;
-  document.getElementById("buyerName").value="";
-  document.getElementById("buyerArtistSelect").value="";
-  document.getElementById("buyerChannelSelect").value="";
-  document.getElementById("buyerNewArtist").value="";
-  document.getElementById("buyerNewChannel").value="";
-  document.getElementById("buyerNewArtist").style.display="none";
-  document.getElementById("buyerNewChannel").style.display="none";
-  document.getElementById("buyerQuantity").value="";
-  document.getElementById("buyerStatus").value="預購";
-  document.getElementById("buyerNote").value="";
-}
-
-function saveChannelOrder(){
-  const artist=getArtist("channel");
-  const channel=getChannel("channel");
-  const total=Number(document.getElementById("channelTotal").value || 0);
-  const status=document.getElementById("channelStatus").value;
-  const note=document.getElementById("channelNote").value.trim();
-  if(!artist || !channel){alert("請選擇或新增藝人與通路");return;}
-  const data={artist,channel,total,status,note};
-
-  if(editingChannelIndex===null){
-    const exists=channelOrders.findIndex(o=>o.artist===artist && o.channel===channel);
-    if(exists!==-1){
-      if(!confirm("這個藝人＋通路已經有總訂單，要覆蓋更新嗎？")) return;
-      channelOrders[exists]=data;
-    }else channelOrders.push(data);
-  }else channelOrders[editingChannelIndex]=data;
-
-  if(!artistList.includes(artist)) artistList.push(artist);
-  if(!channelList.includes(channel)) channelList.push(channel);
-  clearChannelForm(); saveData(); renderAll();
-}
-
-function saveBuyerOrder(){
-  const name=document.getElementById("buyerName").value.trim();
-  const artist=getArtist("buyer");
-  const channel=getChannel("buyer");
-  const quantity=Number(document.getElementById("buyerQuantity").value);
-  const status=document.getElementById("buyerStatus").value;
-  const note=document.getElementById("buyerNote").value.trim();
-  if(!name || !artist || !channel || !quantity){alert("請填完整：姓名、藝人、通路、數量");return;}
-
-  const oldCreated = editingBuyerIndex!==null ? buyerOrders[editingBuyerIndex].createdAt : null;
-  const data={name,artist,channel,quantity,status,note,createdAt: oldCreated || new Date().toLocaleString()};
-  if(editingBuyerIndex===null) buyerOrders.push(data);
-  else buyerOrders[editingBuyerIndex]=data;
-
-  if(!artistList.includes(artist)) artistList.push(artist);
-  if(!channelList.includes(channel)) channelList.push(channel);
-  clearBuyerForm(); saveData(); renderAll();
-}
-
-function statusBadge(status){
-  if(status==="已完成" || status==="已付款") return `<span class="badge green">${escapeHtml(status)}</span>`;
-  if(status==="已到貨") return `<span class="badge blue">${escapeHtml(status)}</span>`;
-  if(status==="未到貨" || status==="預購") return `<span class="badge orange">${escapeHtml(status)}</span>`;
-  if(status==="取消") return `<span class="badge red">${escapeHtml(status)}</span>`;
-  return `<span class="badge red">${escapeHtml(status)}</span>`;
-}
-
-function allArtistChannels(){
-  const arr=[];
-  channelOrders.forEach(o=>arr.push({artist:o.artist,channel:o.channel}));
-  buyerOrders.forEach(o=>arr.push({artist:o.artist,channel:o.channel}));
-  const map={}; arr.forEach(o=>map[o.artist+"||"+o.channel]=o);
-  return Object.values(map);
-}
-
-function renderDashboard(){
-  const buyers=unique(buyerOrders.map(o=>o.name));
-  const validOrders=buyerOrders.filter(o=>o.status!=="取消");
-  const qty=validOrders.reduce((s,o)=>s+Number(o.quantity),0);
-  const preorder=buyerOrders.filter(o=>o.status==="預購").length;
-  document.getElementById("statBuyers").textContent=buyers.length;
-  document.getElementById("statOrders").textContent=buyerOrders.length;
-  document.getElementById("statQty").textContent=qty;
-  document.getElementById("statPreorder").textContent=preorder;
-
-  const box=document.getElementById("dashboardList"); box.innerHTML="";
-  const list=allArtistChannels();
-  if(list.length===0){box.innerHTML=`<p class="small">目前還沒有資料</p>`;return;}
-
-  list.forEach(item=>{
-    const ch=findChannelOrder(item.artist,item.channel);
-    const registered=getRegistered(item.artist,item.channel);
-    const total=ch ? Number(ch.total) : 0;
-    const remain=total-registered;
-    const status=ch ? ch.status : "未下單";
-    const remainClass = !ch ? "orange" : remain<0 ? "red" : remain===0 ? "green" : "blue";
-    box.innerHTML += `
-      <div class="item">
-        <div class="item-title">${escapeHtml(item.artist)}｜${escapeHtml(item.channel)}</div>
-        ${statusBadge(status)}<br>
-        <span class="badge orange">已登記 ${registered}</span>
-        <span class="badge blue">總下單 ${ch ? total : "未建立"}</span>
-        <span class="badge ${remainClass}">${ch ? "剩餘 "+remain : "尚未建立通路總訂單"}</span>
-        ${remain<0 && ch ? `<p class="small" style="color:#ff3b30;">⚠️ 登記數量超過總下單數量</p>` : ""}
-      </div>`;
-  });
-}
-
-function renderChannels(){
-  const box=document.getElementById("channelList");
-  const search=document.getElementById("searchChannel").value.trim();
-  box.innerHTML="";
-  const filtered=channelOrders.filter(o=>!search || (`${o.artist} ${o.channel}`).includes(search));
-  if(filtered.length===0){box.innerHTML=`<p class="small">目前沒有通路總訂單</p>`;return;}
-  filtered.forEach(order=>{
-    const index=channelOrders.indexOf(order);
-    const registered=getRegistered(order.artist,order.channel);
-    const remain=Number(order.total)-registered;
-    const remainClass=remain<0?"red":remain===0?"green":"blue";
-    box.innerHTML += `
-      <div class="item">
-        <div class="item-title">${escapeHtml(order.artist)}｜${escapeHtml(order.channel)}</div>
-        ${statusBadge(order.status)}<br>
-        <span class="badge blue">總下單 ${order.total}</span>
-        <span class="badge orange">已登記 ${registered}</span>
-        <span class="badge ${remainClass}">剩餘 ${remain}</span>
-        ${order.note ? `<p class="small">備註：${escapeHtml(order.note)}</p>` : ""}
-        ${remain<0 ? `<p class="small" style="color:#ff3b30;">⚠️ 登記數量超過總下單數量</p>` : ""}
-        <div class="row"><button class="orange" onclick="editChannel(${index})">編輯</button><button class="red" onclick="deleteChannel(${index})">刪除</button></div>
-      </div>`;
-  });
-}
-
-function renderBuyers(){
-  const box=document.getElementById("buyerList");
-  const search=document.getElementById("searchBuyer").value.trim();
-  box.innerHTML="";
-  const grouped={};
-  buyerOrders.forEach((o,i)=>{
-    if(search && !o.name.includes(search)) return;
-    if(!grouped[o.name]) grouped[o.name]=[];
-    grouped[o.name].push({...o,index:i});
-  });
-  const names=Object.keys(grouped);
-  if(names.length===0){box.innerHTML=`<p class="small">目前沒有購買人訂單</p>`;return;}
-  names.forEach(name=>{
-    const orders=grouped[name];
-    const valid=orders.filter(o=>o.status!=="取消");
-    const total=valid.reduce((s,o)=>s+Number(o.quantity),0);
-    const preorder=orders.filter(o=>o.status==="預購").length;
-    const collapsed=collapsedBuyers[name];
-    let html=`
-      <div class="item">
-        <div class="toggle-title" onclick="toggleBuyer('${jsEscape(name)}')">
-          <div><div class="item-title">👤 ${escapeHtml(name)}</div>
-          <span class="badge">共 ${orders.length} 筆</span>
-          <span class="badge blue">總數量 ${total}</span>
-          <span class="badge orange">預購 ${preorder} 筆</span></div>
-          <div>${collapsed ? "▶":"▼"}</div>
-        </div>`;
-    if(!collapsed){
-      orders.forEach(o=>{
-        html += `<div class="order-card">
-          <strong>${escapeHtml(o.artist)}｜${escapeHtml(o.channel)}</strong><br>
-          <span class="badge blue">${o.quantity} 張</span>
-          ${statusBadge(o.status)}
-          ${o.note ? `<p class="small">備註：${escapeHtml(o.note)}</p>` : ""}
-          <p class="small">建立時間：${escapeHtml(o.createdAt || "-")}</p>
-          <div class="row"><button class="orange" onclick="editBuyer(${o.index})">編輯</button><button class="red" onclick="deleteBuyer(${o.index})">刪除</button></div>
-        </div>`;
-      });
-    }
-    html += `</div>`; box.innerHTML += html;
-  });
-}
-
-function toggleBuyer(name){collapsedBuyers[name]=!collapsedBuyers[name];saveData();renderBuyers();}
-
-function editChannel(index){
-  const o=channelOrders[index]; editingChannelIndex=index; renderSelects();
-  document.getElementById("channelArtistSelect").value=o.artist;
-  document.getElementById("channelNameSelect").value=o.channel;
-  document.getElementById("channelTotal").value=o.total;
-  document.getElementById("channelStatus").value=o.status;
-  document.getElementById("channelNote").value=o.note || "";
-  switchPage("channel",document.querySelectorAll(".tabs button")[1]);
-}
-
-function deleteChannel(index){
-  if(confirm("確定刪除這個通路總訂單嗎？購買人預購資料不會被刪除。")){
-    channelOrders.splice(index,1); saveData(); renderAll();
-  }
-}
-
-function editBuyer(index){
-  const o=buyerOrders[index]; editingBuyerIndex=index; renderSelects();
-  document.getElementById("buyerName").value=o.name;
-  document.getElementById("buyerArtistSelect").value=o.artist;
-  document.getElementById("buyerChannelSelect").value=o.channel;
-  document.getElementById("buyerQuantity").value=o.quantity;
-  document.getElementById("buyerStatus").value=o.status;
-  document.getElementById("buyerNote").value=o.note || "";
-  switchPage("buyer",document.querySelectorAll(".tabs button")[2]);
-}
-
-function deleteBuyer(index){
-  if(confirm("確定刪除這筆購買人訂單嗎？")){
-    buyerOrders.splice(index,1); saveData(); renderAll();
-  }
-}
-
-/* V2.3 藝人／通路管理 */
-function addArtistFromManager(){
-  const input=document.getElementById("newArtistManagerInput");
-  const name=input.value.trim();
-  if(!name){alert("請輸入藝人名稱");return;}
-  if(artistList.includes(name)){alert("這個藝人已存在");return;}
-  artistList.push(name); input.value=""; saveData(); renderAll();
-}
-
-function addChannelFromManager(){
-  const input=document.getElementById("newChannelManagerInput");
-  const name=input.value.trim();
-  if(!name){alert("請輸入通路名稱");return;}
-  if(channelList.includes(name)){alert("這個通路已存在");return;}
-  channelList.push(name); input.value=""; saveData(); renderAll();
-}
-
-function renameArtist(oldName){
-  const newName=prompt("修改藝人名稱", oldName);
-  if(!newName || !newName.trim()) return;
-  const clean=newName.trim();
-  if(clean!==oldName && artistList.includes(clean)){alert("這個藝人名稱已存在");return;}
-
-  artistList=artistList.map(v=>v===oldName?clean:v);
-  channelOrders.forEach(o=>{if(o.artist===oldName)o.artist=clean;});
-  buyerOrders.forEach(o=>{if(o.artist===oldName)o.artist=clean;});
-  saveData(); renderAll();
-}
-
-function renameChannel(oldName){
-  const newName=prompt("修改通路名稱", oldName);
-  if(!newName || !newName.trim()) return;
-  const clean=newName.trim();
-  if(clean!==oldName && channelList.includes(clean)){alert("這個通路名稱已存在");return;}
-
-  channelList=channelList.map(v=>v===oldName?clean:v);
-  channelOrders.forEach(o=>{if(o.channel===oldName)o.channel=clean;});
-  buyerOrders.forEach(o=>{if(o.channel===oldName)o.channel=clean;});
-  saveData(); renderAll();
-}
-
-function deleteArtistName(name){
-  const used = channelOrders.some(o=>o.artist===name) || buyerOrders.some(o=>o.artist===name);
-  if(used){
-    alert("這個藝人已經有資料，不能直接刪除。若要改名請使用「編輯」。");
-    return;
-  }
-  if(confirm("確定刪除這個藝人嗎？")){
-    artistList=artistList.filter(v=>v!==name); saveData(); renderAll();
-  }
-}
-
-function deleteChannelName(name){
-  const used = channelOrders.some(o=>o.channel===name) || buyerOrders.some(o=>o.channel===name);
-  if(used){
-    alert("這個通路已經有資料，不能直接刪除。若要改名請使用「編輯」。");
-    return;
-  }
-  if(confirm("確定刪除這個通路嗎？")){
-    channelList=channelList.filter(v=>v!==name); saveData(); renderAll();
-  }
-}
-
-function renderManagers(){
-  const artistBox=document.getElementById("artistManagerList");
-  const channelBox=document.getElementById("channelManagerList");
-  artistBox.innerHTML="";
-  channelBox.innerHTML="";
-
-  if(artistList.length===0) artistBox.innerHTML=`<p class="small">尚無藝人</p>`;
-  artistList.forEach(name=>{
-    artistBox.innerHTML += `<div class="manager-row">
-      <div class="manager-name">${escapeHtml(name)}</div>
-      <button class="orange" onclick="renameArtist('${jsEscape(name)}')">編輯</button>
-      <button class="red" onclick="deleteArtistName('${jsEscape(name)}')">刪除</button>
-    </div>`;
-  });
-
-  if(channelList.length===0) channelBox.innerHTML=`<p class="small">尚無通路</p>`;
-  channelList.forEach(name=>{
-    channelBox.innerHTML += `<div class="manager-row">
-      <div class="manager-name">${escapeHtml(name)}</div>
-      <button class="orange" onclick="renameChannel('${jsEscape(name)}')">編輯</button>
-      <button class="red" onclick="deleteChannelName('${jsEscape(name)}')">刪除</button>
-    </div>`;
-  });
-}
-
-function exportData(){
-  const data={channelOrders,buyerOrders,artistList,channelList,collapsedBuyers,exportedAt:new Date().toLocaleString(),version:"2.3"};
-  document.getElementById("importBox").value=JSON.stringify(data,null,2);
-  alert("備份已產生，請複製保存。");
-}
-
-function importData(){
-  try{
-    const text=document.getElementById("importBox").value.trim();
-    if(!text){alert("請先貼上備份 JSON");return;}
-    const data=JSON.parse(text);
-    channelOrders=data.channelOrders || [];
-    buyerOrders=data.buyerOrders || [];
-    artistList=data.artistList || artistList;
-    channelList=data.channelList || channelList;
-    collapsedBuyers=data.collapsedBuyers || {};
-    saveData(); renderAll(); alert("還原成功");
-  }catch(e){alert("還原失敗，請確認格式");}
-}
-
-function clearAllData(){
-  if(confirm("確定清空所有資料嗎？這不能復原。")){
-    channelOrders=[];buyerOrders=[];collapsedBuyers={};
-    saveData();renderAll();
-  }
-}
-
-function escapeHtml(text){
-  return String(text).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
-}
-
-function jsEscape(text){
-  return String(text).replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/\n/g,"\\n").replace(/\r/g,"");
-}
-
-function renderAll(){
-  refreshLists();
-  renderSelects();
-  renderDashboard();
-  renderChannels();
-  renderBuyers();
-  renderManagers();
-  saveData();
-}
-
-renderAll();
-</script>
+<script src="app.js"></script>
 </body>
 </html>
