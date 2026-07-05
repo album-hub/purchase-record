@@ -19,6 +19,7 @@
     <div class="card hero-card">
       <h2>首頁</h2>
       <button class="primary-btn" onclick="openBuyerOrderForm()">＋ 新增購買人訂單</button>
+      <button class="secondary-btn" onclick="openQuickAddForm()">⚡ 快速新增</button>
     </div>
 
     <div class="grid dashboard-grid">
@@ -95,7 +96,7 @@
   <section id="page-settings" class="page">
     <div class="card">
       <h2>設定</h2>
-      <p class="muted">管理會重複使用的資料。V4.2 搜尋重構版</p>
+      <p class="muted">管理會重複使用的資料。V4.3 Backup + Quick Add</p>
     </div>
 
     <div class="card">
@@ -134,18 +135,36 @@
       <div id="buyerList"></div>
     </div>
 
-    <div class="card">
-      <h3>💾 備份 / 還原</h3>
-      <button class="secondary-btn" onclick="exportBackup()">產生備份</button>
-      <textarea id="backupBox" placeholder="備份內容會出現在這裡，也可以貼上備份資料"></textarea>
-      <button class="primary-btn" onclick="importBackup()">還原備份</button>
-      <button class="danger-btn" onclick="clearAll()">清空全部資料</button>
+    <div class="card backup-center-card">
+      <h3>🛡️ 備份中心</h3>
+      <p class="muted">建立備份後會直接存進瀏覽器備份紀錄，不用再自己保存一大串代碼。</p>
+
+      <div class="backup-summary-grid">
+        <div class="backup-summary-item">
+          <strong id="backupCount">0</strong>
+          <span>備份數</span>
+        </div>
+        <div class="backup-summary-item">
+          <strong id="backupLastTime">尚無</strong>
+          <span>上次備份</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <input id="backupNameInput" placeholder="備份名稱，例如 V4.3 更新前" />
+        <button class="primary-btn" onclick="manualCreateBackup()">建立備份</button>
+      </div>
+
+      <div id="backupCenterList"></div>
     </div>
 
     <div class="card">
-      <h3>🕘 自動備份紀錄</h3>
-      <p class="muted">系統會自動保留最近 10 次資料變更。</p>
-      <div id="autoBackupList"></div>
+      <h3>💾 匯出 / 匯入 JSON</h3>
+      <p class="muted">這是第二層保險；平常用上面的備份中心即可。</p>
+      <button class="secondary-btn" onclick="exportBackup()">產生 JSON 備份</button>
+      <textarea id="backupBox" placeholder="備份內容會出現在這裡，也可以貼上備份資料"></textarea>
+      <button class="primary-btn" onclick="importBackup()">從 JSON 還原</button>
+      <button class="danger-btn" onclick="clearAll()">清空全部資料</button>
     </div>
 
   </section>

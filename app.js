@@ -1,10 +1,11 @@
-// Fansign Manager v4.2
+// Fansign Manager v4.3
 
 const STORAGE_KEY = "fansign_manager_v3";
 const BACKUP_KEY = "fansign_manager_v3_backups";
 const GROUP_COLLAPSE_KEY = "fansign_manager_v3_group_collapse";
 const BUYER_GROUP_COLLAPSE_KEY = "fansign_manager_v3_buyer_group_collapse";
 const RECENT_CHANNEL_ORDERS_KEY = "fansign_manager_v4_recent_channel_orders";
+const MAX_BACKUPS = 20;
 let isRestoringBackup = false;
 
 function now() {
@@ -66,23 +67,57 @@ function getAutoBackups() {
   }
 }
 
-function createAutoBackup() {
+function backupStats(data = db) {
+  return {
+    artists: (data.artists || []).length,
+    channels: (data.channels || []).length,
+    albumTypes: (data.albumTypes || []).length,
+    buyers: (data.buyers || []).length,
+    channelOrders: (data.channelOrders || []).length,
+    buyerOrders: (data.buyerOrders || []).length
+  };
+}
+
+function backupLabel(item) {
+  const stats = item.stats || {};
+  return `藝人 ${stats.artists || 0}｜通路 ${stats.channels || 0}｜購買人 ${stats.buyers || 0}｜通路訂單 ${stats.channelOrders || 0}｜購買人訂單 ${stats.buyerOrders || 0}`;
+}
+
+function createBackup(name = "自動備份", source = "auto") {
   const backups = getAutoBackups();
-
+  const data = JSON.stringify(db);
   const latest = backups[0];
-  const currentData = JSON.stringify(db);
 
-  if (latest && latest.data === currentData) {
-    return;
+  if (source === "auto" && latest && latest.data === data) {
+    return latest;
   }
 
-  backups.unshift({
+  const item = {
     id: uid("backup"),
+    name: name || (source === "manual" ? "手動備份" : "自動備份"),
+    source,
     time: new Date().toLocaleString(),
-    data: currentData
-  });
+    createdAt: now(),
+    stats: backupStats(db),
+    data
+  };
 
-  localStorage.setItem(BACKUP_KEY, JSON.stringify(backups.slice(0, 10)));
+  backups.unshift(item);
+  localStorage.setItem(BACKUP_KEY, JSON.stringify(backups.slice(0, MAX_BACKUPS)));
+  return item;
+}
+
+function createAutoBackup() {
+  createBackup("自動備份", "auto");
+}
+
+function manualCreateBackup() {
+  const input = document.getElementById("backupNameInput");
+  const name = input?.value.trim() || "手動備份";
+  const item = createBackup(name, "manual");
+  if (input) input.value = "";
+  renderBackupCenter();
+  alert(`備份完成：${item.name}\n${backupLabel(item)}`);
 }
 
 function restoreAutoBackup(id) {
@@ -94,16 +129,16 @@ function restoreAutoBackup(id) {
     return;
   }
 
-  if (!confirm(`確定還原這份備份嗎？
-${backup.time}`)) {
+  if (!confirm(`確定還原這份備份嗎？\n${backup.name || "未命名"}\n${backup.time}`)) {
     return;
   }
 
   try {
+    const parsed = JSON.parse(backup.data);
     isRestoringBackup = true;
     db = {
       ...structuredClone(defaultData),
-      ...JSON.parse(backup.data)
+      ...parsed
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
     isRestoringBackup = false;
@@ -111,16 +146,70 @@ ${backup.time}`)) {
     alert("已還原備份");
   } catch {
     isRestoringBackup = false;
-    alert("還原失敗");
+    alert("還原失敗，這份備份格式可能有問題");
   }
 }
 
 function deleteAutoBackup(id) {
-  if (!confirm("確定刪除這份自動備份嗎？")) return;
+  if (!confirm("確定刪除這份備份嗎？")) return;
 
   const backups = getAutoBackups().filter(item => item.id !== id);
   localStorage.setItem(BACKUP_KEY, JSON.stringify(backups));
-  renderAutoBackups();
+  renderBackupCenter();
+}
+
+function copyBackup(id) {
+  const backup = getAutoBackups().find(item => item.id === id);
+  if (!backup) return alert("找不到這份備份");
+
+  const text = backup.data;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert("已複製備份 JSON");
+    }).catch(() => {
+      document.getElementById("backupBox").value = text;
+      alert("無法自動複製，已放到下方文字框");
+    });
+  } else {
+    document.getElementById("backupBox").value = text;
+    alert("已放到下方文字框，請手動複製");
+  }
+}
+
+function renderBackupCenter() {
+  const box = document.getElementById("backupCenterList");
+  const countBox = document.getElementById("backupCount");
+  const lastBox = document.getElementById("backupLastTime");
+  const backups = getAutoBackups();
+
+  if (countBox) countBox.textContent = `${backups.length} / ${MAX_BACKUPS}`;
+  if (lastBox) lastBox.textContent = backups[0]?.time || "尚無";
+
+  if (!box) return;
+
+  if (backups.length === 0) {
+    box.innerHTML = `<p class="muted">目前還沒有備份。建議更新網站前先建立一份。</p>`;
+    return;
+  }
+
+  box.innerHTML = backups.map(item => `
+    <div class="backup-list-item">
+      <div class="backup-list-title">${escapeHtml(item.name || "未命名備份")}</div>
+      <div class="backup-list-meta">
+        ${escapeHtml(item.time || "")}<br>
+        ${escapeHtml(backupLabel(item))}
+      </div>
+      <div class="button-row">
+        <button class="primary-btn" onclick="restoreAutoBackup('${item.id}')">還原</button>
+        <button class="secondary-btn" onclick="copyBackup('${item.id}')">複製</button>
+        <button class="danger-btn" onclick="deleteAutoBackup('${item.id}')">刪除</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderAutoBackups() {
+  renderBackupCenter();
 }
 
 function byId(collection, id) {
@@ -714,6 +803,294 @@ function channelOrderSuggestionHtml(order, tag = "") {
   `;
 }
 
+
+function openQuickAddForm() {
+  if (db.channelOrders.length === 0) {
+    alert("請先新增通路訂單");
+    return;
+  }
+
+  const lastChannelOrder = getLastChannelOrder();
+
+  openModal("快速新增購買人訂單", `
+    <div class="quick-add-tabs">
+      <button id="quickModeSameChannel" class="quick-add-tab active" onclick="setQuickAddMode('sameChannel')">多人同通路</button>
+      <button id="quickModeSameBuyer" class="quick-add-tab" onclick="setQuickAddMode('sameBuyer')">同一人多通路</button>
+    </div>
+
+    <input type="hidden" id="quickAddMode" value="sameChannel">
+
+    <div id="quickSameChannelFields">
+      <div class="form-field">
+        <label>對應通路訂單</label>
+        <input id="quickChannelSearch" placeholder="搜尋藝人 / 通路 / 批次" value="" oninput="renderQuickChannelSuggestions()" onfocus="renderQuickChannelSuggestions()">
+        <input type="hidden" id="quickChannelOrderId" value="${lastChannelOrder ? lastChannelOrder.id : ""}">
+        <div id="quickChannelSuggestionBox" class="suggestion-box"></div>
+        <div id="quickSelectedChannelHint" class="selected-hint">${lastChannelOrder ? "已套用最近使用：" + escapeHtml(channelOrderLabel(lastChannelOrder)) : "尚未選擇通路訂單"}</div>
+      </div>
+
+      <div class="form-field">
+        <label>貼上名單</label>
+        <textarea id="quickListText" placeholder="小美 2 # 等補款&#10;阿凱&#10;李先生 3 # 合併寄送"></textarea>
+        <p class="muted">支援：小美 2、小美、 小美 2張、小美 x2、小美+2；# 後方會存成備註。</p>
+      </div>
+    </div>
+
+    <div id="quickSameBuyerFields" style="display:none;">
+      <div class="form-field">
+        <label>購買人</label>
+        <input id="quickBuyerName" placeholder="例如 小美">
+      </div>
+
+      <div class="form-field">
+        <label>貼上通路清單</label>
+        <textarea id="quickRouteText" placeholder="JJ 2 # 等補款&#10;MS&#10;AppleMusic 3 # 指定B版"></textarea>
+        <p class="muted">每行格式：通路關鍵字 數量 # 備註。系統會用關鍵字搜尋通路訂單。</p>
+      </div>
+    </div>
+
+    <button class="secondary-btn" onclick="previewQuickAdd()">解析清單</button>
+    <div id="quickAddPreview"></div>
+    <button class="primary-btn" onclick="createQuickAddOrders()">一鍵建立</button>
+  `);
+
+  renderQuickChannelSuggestions();
+}
+
+function setQuickAddMode(mode) {
+  document.getElementById("quickAddMode").value = mode;
+  document.getElementById("quickModeSameChannel").classList.toggle("active", mode === "sameChannel");
+  document.getElementById("quickModeSameBuyer").classList.toggle("active", mode === "sameBuyer");
+  document.getElementById("quickSameChannelFields").style.display = mode === "sameChannel" ? "" : "none";
+  document.getElementById("quickSameBuyerFields").style.display = mode === "sameBuyer" ? "" : "none";
+  document.getElementById("quickAddPreview").innerHTML = "";
+}
+
+function parseQtyAndNote(line) {
+  const [mainRaw, ...noteParts] = String(line || "").split("#");
+  const note = noteParts.join("#").trim();
+  let main = mainRaw.trim();
+
+  if (!main) return null;
+
+  main = main.replace(/＋/g, "+").replace(/張/g, "").replace(/[xX＊*]/g, " x ");
+
+  const plusMatch = main.match(/^(.+?)\s*\+\s*(\d+)$/);
+  if (plusMatch) {
+    return { name: plusMatch[1].trim(), qty: Number(plusMatch[2]), note };
+  }
+
+  const xMatch = main.match(/^(.+?)\s+x\s+(\d+)$/i);
+  if (xMatch) {
+    return { name: xMatch[1].trim(), qty: Number(xMatch[2]), note };
+  }
+
+  const parts = main.split(/\s+/).filter(Boolean);
+  const last = parts[parts.length - 1];
+  if (/^\d+$/.test(last)) {
+    parts.pop();
+    return { name: parts.join(" ").trim(), qty: Number(last), note };
+  }
+
+  return { name: main.trim(), qty: 1, note };
+}
+
+function findBestChannelOrder(keyword) {
+  const q = normalizeText(keyword);
+  if (!q) return null;
+
+  const scored = db.channelOrders
+    .map(order => {
+      const label = channelOrderLabel(order);
+      const channel = nameOf("channels", order.channelId);
+      const artist = nameOf("artists", order.artistId);
+      const batch = order.batch || "";
+      const type = nameOf("albumTypes", order.albumTypeId);
+      const text = `${label} ${channel} ${artist} ${batch} ${type}`;
+      let score = 0;
+      if (normalizeText(channel) === q) score += 100;
+      if (normalizeText(batch) === q) score += 60;
+      if (normalizeText(label).includes(q)) score += 30;
+      if (normalizeText(text).includes(q)) score += 20;
+      return { order, score };
+    })
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return scored[0]?.order || null;
+}
+
+function parseQuickAddSameChannel() {
+  const channelOrderId = document.getElementById("quickChannelOrderId").value;
+  const channelOrder = byId("channelOrders", channelOrderId);
+  const lines = document.getElementById("quickListText").value.split(/\n+/).map(l => l.trim()).filter(Boolean);
+
+  return lines.map(line => {
+    const parsed = parseQtyAndNote(line);
+    return {
+      buyerName: parsed?.name || "",
+      channelOrderId,
+      channelOrder,
+      qty: parsed?.qty || 1,
+      note: parsed?.note || "",
+      error: !channelOrder ? "尚未選擇通路訂單" : (!parsed?.name ? "缺少購買人名稱" : "")
+    };
+  });
+}
+
+function parseQuickAddSameBuyer() {
+  const buyerName = document.getElementById("quickBuyerName").value.trim();
+  const lines = document.getElementById("quickRouteText").value.split(/\n+/).map(l => l.trim()).filter(Boolean);
+
+  return lines.map(line => {
+    const parsed = parseQtyAndNote(line);
+    const channelOrder = findBestChannelOrder(parsed?.name || "");
+    return {
+      buyerName,
+      channelOrderId: channelOrder?.id || "",
+      channelOrder,
+      qty: parsed?.qty || 1,
+      note: parsed?.note || "",
+      error: !buyerName ? "缺少購買人名稱" : (!channelOrder ? `找不到通路：${parsed?.name || ""}` : "")
+    };
+  });
+}
+
+function getQuickAddRows() {
+  const mode = document.getElementById("quickAddMode").value;
+  return mode === "sameBuyer" ? parseQuickAddSameBuyer() : parseQuickAddSameChannel();
+}
+
+function previewQuickAdd() {
+  const rows = getQuickAddRows();
+  const box = document.getElementById("quickAddPreview");
+
+  if (rows.length === 0) {
+    box.innerHTML = `<p class="quick-preview-warning">沒有可解析的資料</p>`;
+    return;
+  }
+
+  const totalQty = rows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
+  box.innerHTML = `
+    <p class="muted">共 ${rows.length} 筆，總數量 ${totalQty}</p>
+    <table class="quick-preview-table">
+      <thead>
+        <tr>
+          <th>購買人</th>
+          <th>通路訂單</th>
+          <th>數量</th>
+          <th>備註</th>
+          <th>狀態</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(row => `
+          <tr>
+            <td>${escapeHtml(row.buyerName)}</td>
+            <td>${row.channelOrder ? escapeHtml(channelOrderLabel(row.channelOrder)) : "-"}</td>
+            <td>${row.qty}</td>
+            <td>${escapeHtml(row.note || "")}</td>
+            <td class="${row.error ? "quick-preview-warning" : ""}">${row.error ? escapeHtml(row.error) : "OK"}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function createQuickAddOrders() {
+  const rows = getQuickAddRows();
+
+  if (rows.length === 0) {
+    alert("沒有可建立的資料");
+    return;
+  }
+
+  const errors = rows.filter(row => row.error);
+  if (errors.length > 0) {
+    previewQuickAdd();
+    alert("清單內還有錯誤，請先修正。");
+    return;
+  }
+
+  const overRows = rows.filter(row => {
+    const remain = row.channelOrder.totalQty - registeredQty(row.channelOrderId);
+    return row.qty > remain;
+  });
+
+  if (overRows.length > 0 && !confirm(`有 ${overRows.length} 筆可能超過剩餘數量，仍要建立嗎？`)) {
+    return;
+  }
+
+  createBackup("快速新增前自動備份", "manual");
+
+  rows.forEach(row => {
+    const buyer = findOrCreateBuyer(row.buyerName);
+    db.buyerOrders.push({
+      id: uid("buyerOrder"),
+      buyerId: buyer.id,
+      channelOrderId: row.channelOrderId,
+      qty: Number(row.qty || 1),
+      amount: 0,
+      paid: false,
+      shipped: false,
+      note: row.note || "",
+      createdAt: now(),
+      updatedAt: now()
+    });
+    saveRecentChannelOrder(row.channelOrderId);
+  });
+
+  saveData();
+  closeModal();
+  renderAll();
+  alert(`已建立 ${rows.length} 筆購買人訂單`);
+}
+
+function renderQuickChannelSuggestions() {
+  const input = document.getElementById("quickChannelSearch");
+  const box = document.getElementById("quickChannelSuggestionBox");
+  if (!input || !box) return;
+
+  const q = input.value.trim();
+  let orders = [];
+
+  if (!q) {
+    orders = getRecentChannelOrders();
+  } else {
+    orders = db.channelOrders
+      .filter(order => includesText(channelOrderLabel(order), q))
+      .slice(0, 12);
+  }
+
+  if (orders.length === 0) {
+    box.innerHTML = `<div class="suggestion-item"><div class="suggestion-secondary">找不到通路訂單</div></div>`;
+    return;
+  }
+
+  box.innerHTML = orders.map(order => {
+    const used = registeredQty(order.id);
+    const remain = Number(order.totalQty) - used;
+
+    return `
+      <div class="suggestion-item" onclick="selectQuickChannelOrder('${order.id}')">
+        <div class="suggestion-primary">${escapeHtml(channelOrderLabel(order))}</div>
+        <div class="suggestion-secondary">總 ${order.totalQty}｜已登記 ${used}｜剩餘 ${remain}｜${escapeHtml(order.status)}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+function selectQuickChannelOrder(id) {
+  const order = byId("channelOrders", id);
+  if (!order) return;
+  document.getElementById("quickChannelOrderId").value = id;
+  document.getElementById("quickChannelSearch").value = "";
+  document.getElementById("quickSelectedChannelHint").innerHTML = "已選擇：" + escapeHtml(channelOrderLabel(order));
+  saveRecentChannelOrder(id);
+  renderQuickChannelSuggestions();
+}
+
 function openBuyerOrderForm(editId = "") {
   if (db.channelOrders.length === 0) {
     alert("請先新增通路訂單");
@@ -1258,14 +1635,18 @@ function renderChannelTimeline() {
 }
 
 function exportBackup() {
-  document.getElementById("backupBox").value = JSON.stringify(db, null, 2);
-  alert("備份已產生，請複製保存。");
+  const item = createBackup("JSON 匯出備份", "manual");
+  const box = document.getElementById("backupBox");
+  if (box) box.value = item.data;
+  renderBackupCenter();
+  alert(`JSON 備份已產生，並已存入備份中心：${item.name}`);
 }
 
 function importBackup() {
   try {
     const raw = document.getElementById("backupBox").value.trim();
     if (!raw) return alert("請貼上備份資料");
+    createBackup("匯入前自動備份", "manual");
     isRestoringBackup = true;
     db = { ...structuredClone(defaultData), ...JSON.parse(raw) };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
@@ -1279,6 +1660,7 @@ function importBackup() {
 
 function clearAll() {
   if (!confirm("確定清空全部資料嗎？這不能復原。")) return;
+  createBackup("清空前自動備份", "manual");
   isRestoringBackup = true;
   db = structuredClone(defaultData);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
@@ -1307,7 +1689,7 @@ function renderAll() {
     renderBuyerOrders();
     renderSearch();
     renderChannelTimeline();
-    renderAutoBackups();
+    renderBackupCenter();
   } catch (error) {
     console.warn("render page error", error);
   }

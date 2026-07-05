@@ -532,3 +532,72 @@ button {
 .suggestion-primary .badge {
   margin-right: 6px;
 }
+
+.backup-center-card {
+  border: 2px solid rgba(0, 122, 255, 0.18);
+}
+
+.backup-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.backup-summary-item {
+  background: #f7f7f9;
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.backup-summary-item strong {
+  display: block;
+  font-size: 20px;
+}
+
+.backup-list-item {
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+
+.backup-list-title {
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.backup-list-meta {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.quick-add-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.quick-add-tab.active {
+  background: var(--blue);
+  color: white;
+}
+
+.quick-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.quick-preview-table th,
+.quick-preview-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 8px 4px;
+  text-align: left;
+}
+
+.quick-preview-warning {
+  color: #ff3b30;
+  font-weight: 800;
+}
