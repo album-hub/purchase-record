@@ -1,4 +1,4 @@
-// Fansign Manager v4.3
+// Fansign Manager v4.3.1
 
 const STORAGE_KEY = "fansign_manager_v3";
 const BACKUP_KEY = "fansign_manager_v3_backups";
@@ -40,14 +40,32 @@ const defaultData = {
 let db = loadData();
 let buyerOrderFilter = "active";
 
+function normalizeLoadedData(data) {
+  data.channels = (data.channels || []).map(channel => ({
+    alias: "",
+    ...channel
+  }));
+
+  data.buyerOrders = (data.buyerOrders || []).map(order => ({
+    ...order,
+    delivery: order.delivery || {
+      market: false,
+      ordered: false,
+      shipped: Boolean(order.shipped)
+    }
+  }));
+
+  return data;
+}
+
 function loadData() {
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return structuredClone(defaultData);
+  if (!raw) return normalizeLoadedData(structuredClone(defaultData));
   try {
-    return { ...structuredClone(defaultData), ...JSON.parse(raw) };
+    return normalizeLoadedData({ ...structuredClone(defaultData), ...JSON.parse(raw) });
   } catch (error) {
     alert("資料讀取失敗，系統會使用空白資料。");
-    return structuredClone(defaultData);
+    return normalizeLoadedData(structuredClone(defaultData));
   }
 }
 
@@ -221,6 +239,17 @@ function nameOf(collection, id) {
   return item ? item.name : "未設定";
 }
 
+function aliasOf(collection, id) {
+  const item = byId(collection, id);
+  return item ? (item.alias || "") : "";
+}
+
+function channelDisplayName(id) {
+  const name = nameOf("channels", id);
+  const alias = aliasOf("channels", id);
+  return alias ? `${name}（${alias}）` : name;
+}
+
 function escapeHtml(text) {
   return String(text ?? "").replace(/[&<>"']/g, s => ({
     "&": "&amp;",
@@ -290,6 +319,7 @@ function addMaster(collection, inputId) {
     id: uid(collection),
     name,
     note: "",
+    alias: "",
     createdAt: now(),
     updatedAt: now()
   });
@@ -353,14 +383,39 @@ function renderMasterList(collection, elementId) {
   }
 
   list.forEach(item => {
+    const aliasHtml = collection === "channels" && item.alias
+      ? `<div class="alias-text">別稱：<span class="alias-badge">${escapeHtml(item.alias)}</span></div>`
+      : "";
+
+    const aliasButton = collection === "channels"
+      ? `<button class="small-btn secondary-btn" onclick="renameChannelAlias('${item.id}')">別稱</button>`
+      : "";
+
     box.innerHTML += `
       <div class="list-item">
-        <strong>${escapeHtml(item.name || "未命名")}</strong>
+        <div>
+          <strong>${escapeHtml(item.name || "未命名")}</strong>
+          ${aliasHtml}
+        </div>
+        ${aliasButton}
         <button class="small-btn edit-btn" onclick="renameMaster('${collection}','${item.id}')">編輯</button>
         <button class="small-btn delete-btn" onclick="deleteMaster('${collection}','${item.id}')">刪除</button>
       </div>
     `;
   });
+}
+
+function renameChannelAlias(id) {
+  const item = byId("channels", id);
+  if (!item) return;
+
+  const value = prompt("設定通路別稱，例如 MS、AM、JJ", item.alias || "");
+  if (value === null) return;
+
+  item.alias = value.trim();
+  item.updatedAt = now();
+  saveData();
+  renderAll();
 }
 
 function optionList(collection, selectedId = "") {
@@ -524,13 +579,13 @@ function orderPeriodText(order) {
 }
 
 function channelOrderLabel(order) {
-  return `${nameOf("artists", order.artistId)}｜${nameOf("channels", order.channelId)}｜${nameOf("albumTypes", order.albumTypeId)}｜${order.batch}${order.orderStartDate || order.orderEndDate ? "｜下單 " + orderPeriodText(order) : ""}${order.fansignDate ? "｜簽售 " + order.fansignDate : ""}${order.fansignTime ? " " + order.fansignTime : ""}`;
+  return `${nameOf("artists", order.artistId)}｜${channelDisplayName(order.channelId)}｜${nameOf("albumTypes", order.albumTypeId)}｜${order.batch}${order.orderStartDate || order.orderEndDate ? "｜下單 " + orderPeriodText(order) : ""}${order.fansignDate ? "｜簽售 " + order.fansignDate : ""}${order.fansignTime ? " " + order.fansignTime : ""}`;
 }
 
 function channelOrderShort(order) {
   return {
     artist: nameOf("artists", order.artistId),
-    channel: nameOf("channels", order.channelId),
+    channel: channelDisplayName(order.channelId),
     type: nameOf("albumTypes", order.albumTypeId),
     batch: order.batch,
     orderPeriod: orderPeriodText(order),
@@ -601,9 +656,7 @@ function renderBuyerMiniList(channelOrderId) {
           <button class="pay-toggle ${order.paid ? "primary-btn" : "danger-btn"}" onclick="togglePaid('${order.id}')">
             ${order.paid ? "✅" : "❌"}
           </button>
-          <button class="pay-toggle ${order.shipped ? "primary-btn" : "secondary-btn"}" onclick="toggleShipped('${order.id}')">
-            ${order.shipped ? "🚚" : "📦"}
-          </button>
+          <div>${renderDeliveryChecklist(order, true)}</div>
         </div>
       `).join("")}
     </div>
@@ -903,12 +956,14 @@ function findBestChannelOrder(keyword) {
     .map(order => {
       const label = channelOrderLabel(order);
       const channel = nameOf("channels", order.channelId);
+      const alias = aliasOf("channels", order.channelId);
       const artist = nameOf("artists", order.artistId);
       const batch = order.batch || "";
       const type = nameOf("albumTypes", order.albumTypeId);
-      const text = `${label} ${channel} ${artist} ${batch} ${type}`;
+      const text = `${label} ${channel} ${alias} ${artist} ${batch} ${type}`;
       let score = 0;
       if (normalizeText(channel) === q) score += 100;
+      if (normalizeText(alias) === q) score += 120;
       if (normalizeText(batch) === q) score += 60;
       if (normalizeText(label).includes(q)) score += 30;
       if (normalizeText(text).includes(q)) score += 20;
@@ -1034,6 +1089,7 @@ function createQuickAddOrders() {
       amount: 0,
       paid: false,
       shipped: false,
+      delivery: { market: false, ordered: false, shipped: false },
       note: row.note || "",
       createdAt: now(),
       updatedAt: now()
@@ -1303,6 +1359,7 @@ function saveBuyerOrder(editId = "") {
     amount,
     paid,
     shipped: editId ? Boolean(byId("buyerOrders", editId).shipped) : false,
+    delivery: editId ? (byId("buyerOrders", editId).delivery || { market: false, ordered: false, shipped: Boolean(byId("buyerOrders", editId).shipped) }) : { market: false, ordered: false, shipped: false },
     note,
     createdAt: editId ? byId("buyerOrders", editId).createdAt : now(),
     updatedAt: now()
@@ -1317,6 +1374,72 @@ function saveBuyerOrder(editId = "") {
   renderAll();
 }
 
+
+function ensureDelivery(order) {
+  if (!order.delivery) {
+    order.delivery = {
+      market: false,
+      ordered: false,
+      shipped: Boolean(order.shipped)
+    };
+  }
+
+  if (order.shipped && order.delivery) {
+    order.delivery.shipped = true;
+  }
+
+  return order.delivery;
+}
+
+function deliveryState(order) {
+  const delivery = ensureDelivery(order);
+  return {
+    market: Boolean(delivery.market),
+    ordered: Boolean(delivery.ordered),
+    shipped: Boolean(delivery.shipped)
+  };
+}
+
+function isDeliveryComplete(order) {
+  const state = deliveryState(order);
+  return state.market && state.ordered && state.shipped;
+}
+
+function toggleDeliveryStep(id, step) {
+  const order = byId("buyerOrders", id);
+  if (!order) return;
+
+  const delivery = ensureDelivery(order);
+  delivery[step] = !delivery[step];
+
+  if (step === "shipped") {
+    order.shipped = Boolean(delivery.shipped);
+  }
+
+  order.updatedAt = now();
+  saveData();
+  renderAll();
+}
+
+function renderDeliveryChecklist(order, compact = false) {
+  const state = deliveryState(order);
+  const labels = [
+    ["market", "建立賣場"],
+    ["ordered", "下單"],
+    ["shipped", "出貨"]
+  ];
+
+  return `
+    <div class="delivery-checklist">
+      ${labels.map(([key, label]) => `
+        <button class="delivery-step-btn ${state[key] ? "done" : ""}" onclick="toggleDeliveryStep('${order.id}', '${key}')">
+          ${state[key] ? "✅" : "☐"} ${compact ? label.slice(0, 2) : label}
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
 function togglePaid(id) {
   const order = byId("buyerOrders", id);
   if (!order) return;
@@ -1327,13 +1450,15 @@ function togglePaid(id) {
 }
 
 function isBuyerOrderArchived(order) {
-  return Boolean(order.paid && order.shipped);
+  return Boolean(order.paid && isDeliveryComplete(order));
 }
 
 function toggleShipped(id) {
   const order = byId("buyerOrders", id);
   if (!order) return;
-  order.shipped = !order.shipped;
+  const delivery = ensureDelivery(order);
+  delivery.shipped = !delivery.shipped;
+  order.shipped = Boolean(delivery.shipped);
   order.updatedAt = now();
   saveData();
   renderAll();
@@ -1409,12 +1534,12 @@ function renderBuyerOrderCard(order, compact = false) {
         <button class="pay-toggle ${order.paid ? "primary-btn" : "danger-btn"}" onclick="togglePaid('${order.id}')">
           ${order.paid ? "✅ 已付款" : "❌ 未付款"}
         </button>
-        <button class="ship-toggle ${order.shipped ? "primary-btn" : "secondary-btn"}" onclick="toggleShipped('${order.id}')">
-          ${order.shipped ? "🚚 已出貨" : "📦 未出貨"}
-        </button>
       </div>
 
-      ${isBuyerOrderArchived(order) ? `<p class="archived-note">已付款且已出貨，已進入封存</p>` : ""}
+      <strong>配送流程</strong>
+      ${renderDeliveryChecklist(order)}
+
+      ${isBuyerOrderArchived(order) ? `<p class="archived-note">已付款且配送流程完成，已進入封存</p>` : ""}
       ${order.note ? `<p class="muted">備註：${escapeHtml(order.note)}</p>` : ""}
 
       <div class="button-row">
@@ -1517,7 +1642,7 @@ function renderHome() {
   const notOrdered = db.channelOrders.filter(o => o.status === "未下單").length;
   const notArrived = db.channelOrders.filter(o => o.status === "未到貨").length;
   const archived = db.buyerOrders.filter(o => isBuyerOrderArchived(o)).length;
-  const unshipped = db.buyerOrders.filter(o => !o.shipped && !isBuyerOrderArchived(o)).length;
+  const unshipped = db.buyerOrders.filter(o => !isDeliveryComplete(o) && !isBuyerOrderArchived(o)).length;
 
   alerts.innerHTML = `
     <p><span class="badge red clickable-badge" onclick="goToUnpaidOrders()">未付款 ${unpaid}</span></p>
