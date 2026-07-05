@@ -641,3 +641,86 @@ button {
   font-weight: 800;
   margin-left: 4px;
 }
+
+.buyer-tree {
+  display: grid;
+  gap: 12px;
+}
+
+.tree-node {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.tree-node-header {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.tree-node-header:hover {
+  background: rgba(0, 122, 255, 0.06);
+}
+
+.tree-node-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tree-node-count {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.tree-node-body {
+  padding: 0 12px 12px 12px;
+}
+
+.tree-level-artist {
+  margin-left: 10px;
+}
+
+.tree-level-channel {
+  margin-left: 20px;
+}
+
+.tree-level-detail {
+  margin-left: 30px;
+}
+
+.tree-detail-card {
+  background: #f7f7f9;
+  border-radius: 16px;
+  padding: 10px 12px;
+  margin: 8px 0;
+}
+
+.tree-detail-header {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 4px 0;
+  text-align: left;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.tree-order-wrap {
+  margin-top: 8px;
+}
+
+.tree-empty {
+  padding: 16px;
+  color: var(--muted);
+}

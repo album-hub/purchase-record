@@ -1,9 +1,10 @@
-// Fansign Manager v4.3.1
+// Fansign Manager v4.3 Final
 
 const STORAGE_KEY = "fansign_manager_v3";
 const BACKUP_KEY = "fansign_manager_v3_backups";
 const GROUP_COLLAPSE_KEY = "fansign_manager_v3_group_collapse";
 const BUYER_GROUP_COLLAPSE_KEY = "fansign_manager_v3_buyer_group_collapse";
+const BUYER_TREE_COLLAPSE_KEY = "fansign_manager_v4_3_buyer_tree_collapse";
 const RECENT_CHANNEL_ORDERS_KEY = "fansign_manager_v4_recent_channel_orders";
 const MAX_BACKUPS = 20;
 let isRestoringBackup = false;
@@ -1550,71 +1551,211 @@ function renderBuyerOrderCard(order, compact = false) {
   `;
 }
 
+
+function getBuyerTreeCollapsed() {
+  try {
+    return JSON.parse(localStorage.getItem(BUYER_TREE_COLLAPSE_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveBuyerTreeCollapsed(data) {
+  localStorage.setItem(BUYER_TREE_COLLAPSE_KEY, JSON.stringify(data));
+}
+
+function toggleBuyerTreeNode(key) {
+  const collapsed = getBuyerTreeCollapsed();
+  collapsed[key] = !collapsed[key];
+  saveBuyerTreeCollapsed(collapsed);
+  renderBuyerOrders();
+}
+
+function buyerTreeKey(...parts) {
+  return parts.map(part => String(part || "unknown")).join("||");
+}
+
+function buyerOrderSearchText(order) {
+  const co = byId("channelOrders", order.channelOrderId);
+  const buyer = nameOf("buyers", order.buyerId);
+  return `${buyer} ${co ? channelOrderLabel(co) : ""} ${order.note || ""}`;
+}
+
+function shouldShowBuyerOrderByFilter(order) {
+  const archived = isBuyerOrderArchived(order);
+
+  if (buyerOrderFilter === "active" && archived) return false;
+  if (buyerOrderFilter === "unpaid" && (order.paid || archived)) return false;
+  if (buyerOrderFilter === "paid" && (!order.paid || archived)) return false;
+  if (buyerOrderFilter === "archived" && !archived) return false;
+
+  return true;
+}
+
+function groupBuyerOrdersForTree(orders) {
+  const root = new Map();
+
+  orders.forEach(order => {
+    const channelOrder = byId("channelOrders", order.channelOrderId);
+    const buyerId = order.buyerId || "unknown_buyer";
+    const buyerName = nameOf("buyers", buyerId);
+    const artistId = channelOrder?.artistId || "unknown_artist";
+    const artistName = channelOrder ? nameOf("artists", artistId) : "未設定藝人";
+    const channelId = channelOrder?.channelId || "unknown_channel";
+    const channelName = channelOrder ? channelDisplayName(channelId) : "未設定通路";
+    const detailId = channelOrder?.id || "unknown_detail";
+    const detailName = channelOrder ? channelOrderLabel(channelOrder) : "通路訂單不存在";
+
+    if (!root.has(buyerId)) {
+      root.set(buyerId, {
+        id: buyerId,
+        name: buyerName,
+        count: 0,
+        artists: new Map()
+      });
+    }
+
+    const buyerNode = root.get(buyerId);
+    buyerNode.count += 1;
+
+    if (!buyerNode.artists.has(artistId)) {
+      buyerNode.artists.set(artistId, {
+        id: artistId,
+        name: artistName,
+        count: 0,
+        channels: new Map()
+      });
+    }
+
+    const artistNode = buyerNode.artists.get(artistId);
+    artistNode.count += 1;
+
+    if (!artistNode.channels.has(channelId)) {
+      artistNode.channels.set(channelId, {
+        id: channelId,
+        name: channelName,
+        count: 0,
+        details: new Map()
+      });
+    }
+
+    const channelNode = artistNode.channels.get(channelId);
+    channelNode.count += 1;
+
+    if (!channelNode.details.has(detailId)) {
+      channelNode.details.set(detailId, {
+        id: detailId,
+        name: detailName,
+        count: 0,
+        orders: []
+      });
+    }
+
+    const detailNode = channelNode.details.get(detailId);
+    detailNode.count += 1;
+    detailNode.orders.push(order);
+  });
+
+  return [...root.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function renderTreeHeader(key, levelClass, icon, title, count) {
+  const collapsed = getBuyerTreeCollapsed();
+  const isCollapsed = Boolean(collapsed[key]);
+  return `
+    <button class="tree-node-header ${levelClass}" onclick="toggleBuyerTreeNode('${escapeAttr(key)}')">
+      <span class="tree-node-title">${isCollapsed ? "▶" : "▼"} ${icon} ${escapeHtml(title)}</span>
+      <span class="tree-node-count">${count} 筆</span>
+    </button>
+  `;
+}
+
+function renderBuyerTree(orders) {
+  const collapsed = getBuyerTreeCollapsed();
+  const buyers = groupBuyerOrdersForTree(orders);
+
+  if (buyers.length === 0) {
+    return `<div class="card"><p class="muted">沒有符合條件的購買人訂單。</p></div>`;
+  }
+
+  return `
+    <div class="buyer-tree">
+      ${buyers.map(buyer => {
+        const buyerKey = buyerTreeKey("buyer", buyer.id);
+        const buyerCollapsed = Boolean(collapsed[buyerKey]);
+
+        return `
+          <div class="tree-node">
+            ${renderTreeHeader(buyerKey, "", "👤", buyer.name, buyer.count)}
+            ${buyerCollapsed ? "" : `
+              <div class="tree-node-body">
+                ${[...buyer.artists.values()].sort((a, b) => a.name.localeCompare(b.name)).map(artist => {
+                  const artistKey = buyerTreeKey("buyer", buyer.id, "artist", artist.id);
+                  const artistCollapsed = Boolean(collapsed[artistKey]);
+
+                  return `
+                    <div class="tree-node tree-level-artist">
+                      ${renderTreeHeader(artistKey, "tree-level-artist-header", "🎤", artist.name, artist.count)}
+                      ${artistCollapsed ? "" : `
+                        <div class="tree-node-body">
+                          ${[...artist.channels.values()].sort((a, b) => a.name.localeCompare(b.name)).map(channel => {
+                            const channelKey = buyerTreeKey("buyer", buyer.id, "artist", artist.id, "channel", channel.id);
+                            const channelCollapsed = Boolean(collapsed[channelKey]);
+
+                            return `
+                              <div class="tree-node tree-level-channel">
+                                ${renderTreeHeader(channelKey, "tree-level-channel-header", "🏪", channel.name, channel.count)}
+                                ${channelCollapsed ? "" : `
+                                  <div class="tree-node-body">
+                                    ${[...channel.details.values()].map(detail => {
+                                      const detailKey = buyerTreeKey("buyer", buyer.id, "artist", artist.id, "channel", channel.id, "detail", detail.id);
+                                      const detailCollapsed = Boolean(collapsed[detailKey]);
+
+                                      return `
+                                        <div class="tree-detail-card tree-level-detail">
+                                          <button class="tree-detail-header" onclick="toggleBuyerTreeNode('${escapeAttr(detailKey)}')">
+                                            ${detailCollapsed ? "▶" : "▼"} 📦 ${escapeHtml(detail.name)}
+                                            <span class="tree-node-count">${detail.count} 筆</span>
+                                          </button>
+                                          ${detailCollapsed ? "" : `
+                                            <div class="tree-order-wrap">
+                                              ${detail.orders.map(order => renderBuyerOrderCard(order, true)).join("")}
+                                            </div>
+                                          `}
+                                        </div>
+                                      `;
+                                    }).join("")}
+                                  </div>
+                                `}
+                              </div>
+                            `;
+                          }).join("")}
+                        </div>
+                      `}
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+            `}
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
 function renderBuyerOrders() {
   const box = document.getElementById("buyerOrderList");
-  const q = document.getElementById("buyerOrderSearch")?.value.trim() || "";
   if (!box) return;
 
-  box.innerHTML = "";
+  const q = document.getElementById("buyerOrderSearch")?.value.trim() || "";
 
   const filtered = db.buyerOrders.filter(order => {
-    const archived = isBuyerOrderArchived(order);
-
-    if (buyerOrderFilter === "active" && archived) return false;
-    if (buyerOrderFilter === "unpaid" && (order.paid || archived)) return false;
-    if (buyerOrderFilter === "paid" && (!order.paid || archived)) return false;
-    if (buyerOrderFilter === "archived" && !archived) return false;
-
-    const co = byId("channelOrders", order.channelOrderId);
-    const buyer = nameOf("buyers", order.buyerId);
-    const text = `${buyer} ${co ? channelOrderLabel(co) : ""}`;
-    return includesText(text, q);
+    if (!shouldShowBuyerOrderByFilter(order)) return false;
+    return includesText(buyerOrderSearchText(order), q);
   });
 
-  if (filtered.length === 0) {
-    box.innerHTML = `<div class="card"><p class="muted">尚無購買人訂單</p></div>`;
-    return;
-  }
-
-  if (q) {
-    box.innerHTML = filtered.map(order => renderBuyerOrderCard(order)).join("");
-    return;
-  }
-
-  const groups = {};
-  filtered.forEach(order => {
-    if (!groups[order.buyerId]) {
-      groups[order.buyerId] = [];
-    }
-    groups[order.buyerId].push(order);
-  });
-
-  const collapsed = getCollapsedBuyerGroups();
-
-  Object.keys(groups).forEach(buyerId => {
-    const orders = groups[buyerId];
-    const totalQty = orders.reduce((sum, order) => sum + Number(order.qty), 0);
-    const unpaidCount = orders.filter(order => !order.paid).length;
-    const totalAmount = orders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
-    const isCollapsed = collapsed[buyerId];
-
-    box.innerHTML += `
-      <div class="buyer-group-card">
-        <div class="buyer-group-header">
-          <div class="buyer-group-title">👤 ${escapeHtml(nameOf("buyers", buyerId))}</div>
-          <div class="buyer-group-summary">
-            ${orders.length} 筆｜${totalQty} 張｜${money(totalAmount)}｜未付款 ${unpaidCount} 筆
-          </div>
-          <button class="buyer-group-toggle" onclick="toggleBuyerGroup('${buyerId}')">
-            ${isCollapsed ? "▶ 展開訂單" : "▼ 收合訂單"}
-          </button>
-        </div>
-        <div class="buyer-group-body" style="${isCollapsed ? "display:none;" : ""}">
-          ${orders.map(order => renderBuyerOrderCard(order, true)).join("")}
-        </div>
-      </div>
-    `;
-  });
+  box.innerHTML = renderBuyerTree(filtered);
 }
 
 function renderHome() {
