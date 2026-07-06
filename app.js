@@ -115,12 +115,25 @@ function normalizeLoadedData(data) {
 
 function loadData() {
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return normalizeLoadedData(structuredClone(defaultData));
+  if (!raw) {
+    const emptyData = normalizeLoadedData(structuredClone(defaultData));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(emptyData));
+    return emptyData;
+  }
+
   try {
-    return normalizeLoadedData({ ...structuredClone(defaultData), ...JSON.parse(raw) });
+    const loadedData = normalizeLoadedData({
+      ...structuredClone(defaultData),
+      ...JSON.parse(raw)
+    });
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(loadedData));
+    return loadedData;
   } catch (error) {
     alert("資料讀取失敗，系統會使用空白資料。");
-    return normalizeLoadedData(structuredClone(defaultData));
+    const emptyData = normalizeLoadedData(structuredClone(defaultData));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(emptyData));
+    return emptyData;
   }
 }
 
@@ -1969,7 +1982,7 @@ function importBackup() {
     if (!raw) return alert("請貼上備份資料");
     createBackup("匯入前自動備份", "manual");
     isRestoringBackup = true;
-    db = { ...structuredClone(defaultData), ...JSON.parse(raw) };
+    db = normalizeLoadedData({ ...structuredClone(defaultData), ...JSON.parse(raw) });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
     isRestoringBackup = false;
     renderAll();
