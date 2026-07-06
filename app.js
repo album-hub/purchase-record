@@ -1,13 +1,9 @@
-// Fansign Manager v4.3 Final
 
-const STORAGE_KEY = "fansign_manager_v3";
-const BACKUP_KEY = "fansign_manager_v3_backups";
-const GROUP_COLLAPSE_KEY = "fansign_manager_v3_group_collapse";
-const BUYER_GROUP_COLLAPSE_KEY = "fansign_manager_v3_buyer_group_collapse";
-const BUYER_TREE_COLLAPSE_KEY = "fansign_manager_v4_3_buyer_tree_collapse";
-const RECENT_CHANNEL_ORDERS_KEY = "fansign_manager_v4_recent_channel_orders";
-const MAX_BACKUPS = 20;
 let isRestoringBackup = false;
+//
+// Uilts
+// 共用工具程式
+//
 
 function now() {
   return new Date().toISOString();
@@ -16,6 +12,10 @@ function now() {
 function uid(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
+//
+// Default Data
+// 系統初始化資料
+//
 
 const defaultData = {
   artists: [
@@ -58,6 +58,10 @@ function normalizeLoadedData(data) {
 
   return data;
 }
+//
+// Storage
+// LocalStorage 讀取 / 寫入 / 資料初始化
+//
 
 function loadData() {
   const raw = localStorage.getItem(STORAGE_KEY);
