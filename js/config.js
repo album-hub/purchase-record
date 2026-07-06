@@ -6,6 +6,7 @@
 
 const APP_NAME = "Fansign_Manager";
 const APP_VERSION = "4.3.0";
+const APP_SCHEMA = 3;
 
 const STORAGE_KEY = "fansign_manager_v3";
 const BACKUP_KEY = "fansign_manager_v3_backups";

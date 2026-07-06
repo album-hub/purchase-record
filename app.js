@@ -42,19 +42,69 @@ let db = loadData();
 let buyerOrderFilter = "active";
 
 function normalizeLoadedData(data) {
-  data.channels = (data.channels || []).map(channel => ({
-    alias: "",
-    ...channel
+  data.appName = data.appName || APP_NAME;
+  data.appVersion = data.appVersion || APP_VERSION;
+  data.schema = Number(data.schema || 1);
+
+  data.artists = (data.artists || []).map(item => ({
+    id: item.id || uid("artist"),
+    name: item.name || "未命名藝人",
+    note: item.note || "",
+    createdAt: item.createdAt || now(),
+    updatedAt: item.updatedAt || now()
   }));
 
-  data.buyerOrders = (data.buyerOrders || []).map(order => ({
-    ...order,
-    delivery: order.delivery || {
-      market: false,
-      ordered: false,
-      shipped: Boolean(order.shipped)
-    }
+  data.channels = (data.channels || []).map(item => ({
+    id: item.id || uid("channel"),
+    name: item.name || "未命名通路",
+    alias: item.alias || "",
+    note: item.note || "",
+    createdAt: item.createdAt || now(),
+    updatedAt: item.updatedAt || now()
   }));
+
+  data.albumTypes = (data.albumTypes || []).map(item => ({
+    id: item.id || uid("type"),
+    name: item.name || "未命名類型",
+    note: item.note || "",
+    createdAt: item.createdAt || now(),
+    updatedAt: item.updatedAt || now()
+  }));
+
+  data.buyers = (data.buyers || []).map(item => ({
+    id: item.id || uid("buyer"),
+    name: item.name || "未命名購買人",
+    note: item.note || "",
+    createdAt: item.createdAt || now(),
+    updatedAt: item.updatedAt || now()
+  }));
+
+  data.channelOrders = data.channelOrders || [];
+
+  data.buyerOrders = (data.buyerOrders || []).map(order => {
+    const shipped = Boolean(order.shipped || order.delivery?.shipped);
+
+    return {
+      ...order,
+      id: order.id || uid("buyerOrder"),
+      qty: Number(order.qty || 1),
+      amount: Number(order.amount || 0),
+      paid: Boolean(order.paid),
+      shipped,
+      delivery: {
+        market: Boolean(order.delivery?.market),
+        ordered: Boolean(order.delivery?.ordered),
+        shipped
+      },
+      note: order.note || "",
+      createdAt: order.createdAt || now(),
+      updatedAt: order.updatedAt || now()
+    };
+  });
+
+  data.appName = APP_NAME;
+  data.appVersion = APP_VERSION;
+  data.schema = APP_SCHEMA;
 
   return data;
 }
