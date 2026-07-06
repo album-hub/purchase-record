@@ -4,6 +4,9 @@
 // 專案設定、Storage Key、版本資訊
 //
 
+const APP_NAME = "Fansign_Manager";
+const APP_VERSION = "4.3.0";
+
 const STORAGE_KEY = "fansign_manager_v3";
 const BACKUP_KEY = "fansign_manager_v3_backups";
 const GROUP_COLLAPSE_KEY = "fansign_manager_v3_group_collapse";
