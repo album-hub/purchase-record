@@ -1238,7 +1238,7 @@ function openBuyerOrderForm(editId = "") {
   openModal(editId ? "編輯購買人訂單" : "新增購買人訂單", `
     <div class="form-field">
       <label>購買人</label>
-      <input id="boBuyerSearch" placeholder="輸入購買人姓名，例如 李" value="${escapeAttr(buyerName)}" oninput="renderBuyerSuggestions()" onfocus="renderBuyerSuggestions()">
+      <input id="boBuyerSearch" placeholder="搜尋或選擇藝人 / 通路 / 批次" value="${escapeAttr(channelInputValue)}" oninput="renderChannelOrderSuggestions()" onfocus="renderChannelOrderSuggestions()">
       <div id="buyerSuggestionBox" class="suggestion-box"></div>
       <p class="muted">輸入關鍵字會即時篩選；找不到會自動新增。</p>
     </div>
