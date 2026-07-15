@@ -583,6 +583,93 @@ button {
   color: white;
 }
 
+.quick-entry-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.quick-entry-tab {
+  background: #e9e9ef;
+  color: #333;
+}
+
+.quick-entry-tab.active {
+  background: #333;
+  color: white;
+}
+
+.quick-add-grid-head,
+.quick-add-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.5fr) 82px 110px minmax(150px, 1fr) 42px;
+  gap: 8px;
+  align-items: start;
+}
+
+.quick-add-grid-head {
+  padding: 0 10px 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.quick-add-row {
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #f7f7f9;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.quick-add-cell input {
+  margin: 0;
+}
+
+.quick-add-cell-label {
+  display: none;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.quick-row-suggestions {
+  max-height: 170px;
+}
+
+.quick-add-remove-btn {
+  width: 42px;
+  min-height: 42px;
+  margin: 0;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(255, 59, 48, 0.12);
+  color: var(--red);
+}
+
+.quick-add-row-button {
+  margin-bottom: 16px;
+}
+
+.quick-add-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.quick-preview-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.quick-preview-notice {
+  color: var(--orange);
+  font-weight: 800;
+}
+
 .quick-preview-table {
   width: 100%;
   border-collapse: collapse;
@@ -600,6 +687,34 @@ button {
 .quick-preview-warning {
   color: #ff3b30;
   font-weight: 800;
+}
+
+@media (max-width: 640px) {
+  .quick-add-grid-head {
+    display: none;
+  }
+
+  .quick-add-row {
+    grid-template-columns: 1fr 1fr 42px;
+  }
+
+  .quick-add-primary-cell,
+  .quick-add-note-cell {
+    grid-column: 1 / -1;
+  }
+
+  .quick-add-cell-label {
+    display: block;
+  }
+
+  .quick-add-remove-btn {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .quick-add-actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 .delivery-checklist {

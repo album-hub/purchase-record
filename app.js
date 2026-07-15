@@ -926,6 +926,8 @@ function channelOrderSuggestionHtml(order, tag = "") {
 }
 
 
+let quickAddRowCounter = 0;
+
 function openQuickAddForm() {
   if (db.channelOrders.length === 0) {
     alert("請先新增通路訂單");
@@ -940,42 +942,69 @@ function openQuickAddForm() {
       <button id="quickModeSameBuyer" class="quick-add-tab" onclick="setQuickAddMode('sameBuyer')">同一人多通路</button>
     </div>
 
+    <div class="quick-entry-tabs">
+      <button id="quickEntryFields" class="quick-entry-tab active" onclick="setQuickAddEntryMode('fields')">欄位新增</button>
+      <button id="quickEntryPaste" class="quick-entry-tab" onclick="setQuickAddEntryMode('paste')">文字貼上</button>
+    </div>
+
     <input type="hidden" id="quickAddMode" value="sameChannel">
+    <input type="hidden" id="quickEntryMode" value="fields">
 
     <div id="quickSameChannelFields">
       <div class="form-field">
         <label>對應通路訂單</label>
-        <input id="quickChannelSearch" placeholder="搜尋藝人 / 通路 / 批次" value="" oninput="renderQuickChannelSuggestions()" onfocus="renderQuickChannelSuggestions()">
+        <input id="quickChannelSearch" placeholder="搜尋或選擇藝人 / 通路 / 別稱 / 批次" oninput="handleQuickMainChannelInput()" onfocus="renderQuickChannelSuggestions()">
         <input type="hidden" id="quickChannelOrderId" value="${lastChannelOrder ? lastChannelOrder.id : ""}">
         <div id="quickChannelSuggestionBox" class="suggestion-box"></div>
         <div id="quickSelectedChannelHint" class="selected-hint">${lastChannelOrder ? "已套用最近使用：" + escapeHtml(channelOrderLabel(lastChannelOrder)) : "尚未選擇通路訂單"}</div>
       </div>
 
-      <div class="form-field">
-        <label>貼上名單</label>
-        <textarea id="quickListText" placeholder="小美 2 # 等補款&#10;阿凱&#10;李先生 3 # 合併寄送"></textarea>
-        <p class="muted">支援：小美 2、小美、 小美 2張、小美 x2、小美+2；# 後方會存成備註。</p>
+      <div class="quick-field-entry">
+        <div class="quick-add-grid-head"><span>購買人</span><span>數量</span><span>金額</span><span>備註</span><span></span></div>
+        <div id="quickSameChannelRows" class="quick-add-rows"></div>
+        <button class="secondary-btn quick-add-row-button" onclick="addQuickAddRow('sameChannel')">＋ 新增一列</button>
+      </div>
+
+      <div class="quick-paste-entry" style="display:none;">
+        <div class="form-field">
+          <label>貼上名單</label>
+          <textarea id="quickListText" placeholder="小美 2 $1800 # 合併寄送&#10;阿凱 1 $900"></textarea>
+          <p class="muted">每行：姓名 數量 $金額 # 備註。金額與備註可省略。</p>
+        </div>
       </div>
     </div>
 
     <div id="quickSameBuyerFields" style="display:none;">
       <div class="form-field">
         <label>購買人</label>
-        <input id="quickBuyerName" placeholder="例如 小美">
+        <input id="quickBuyerName" placeholder="輸入或選擇購買人" oninput="renderQuickCommonBuyerSuggestions()" onfocus="renderQuickCommonBuyerSuggestions()">
+        <div id="quickBuyerSuggestionBox" class="suggestion-box"></div>
       </div>
 
-      <div class="form-field">
-        <label>貼上通路清單</label>
-        <textarea id="quickRouteText" placeholder="JJ 2 # 等補款&#10;MS&#10;AppleMusic 3 # 指定B版"></textarea>
-        <p class="muted">每行格式：通路關鍵字 數量 # 備註。系統會用關鍵字搜尋通路訂單。</p>
+      <div class="quick-field-entry">
+        <div class="quick-add-grid-head"><span>通路訂單</span><span>數量</span><span>金額</span><span>備註</span><span></span></div>
+        <div id="quickSameBuyerRows" class="quick-add-rows"></div>
+        <button class="secondary-btn quick-add-row-button" onclick="addQuickAddRow('sameBuyer')">＋ 新增一列</button>
+      </div>
+
+      <div class="quick-paste-entry" style="display:none;">
+        <div class="form-field">
+          <label>貼上通路清單</label>
+          <textarea id="quickRouteText" placeholder="JJ 2 $1800 # 指定B版&#10;MS 1 $900"></textarea>
+          <p class="muted">每行：通路關鍵字 數量 $金額 # 備註。金額與備註可省略。</p>
+        </div>
       </div>
     </div>
 
-    <button class="secondary-btn" onclick="previewQuickAdd()">解析清單</button>
+    <div class="quick-add-actions">
+      <button class="secondary-btn" onclick="previewQuickAdd()">預覽</button>
+      <button class="primary-btn" onclick="createQuickAddOrders()">一鍵建立（預設已付款）</button>
+    </div>
     <div id="quickAddPreview"></div>
-    <button class="primary-btn" onclick="createQuickAddOrders()">一鍵建立</button>
   `);
 
+  addQuickAddRow("sameChannel");
+  addQuickAddRow("sameBuyer");
   renderQuickChannelSuggestions();
 }
 
@@ -986,35 +1015,192 @@ function setQuickAddMode(mode) {
   document.getElementById("quickSameChannelFields").style.display = mode === "sameChannel" ? "" : "none";
   document.getElementById("quickSameBuyerFields").style.display = mode === "sameBuyer" ? "" : "none";
   document.getElementById("quickAddPreview").innerHTML = "";
+  if (mode === "sameChannel") renderQuickChannelSuggestions();
+  if (mode === "sameBuyer") renderQuickCommonBuyerSuggestions();
+}
+
+function setQuickAddEntryMode(mode) {
+  document.getElementById("quickEntryMode").value = mode;
+  document.getElementById("quickEntryFields").classList.toggle("active", mode === "fields");
+  document.getElementById("quickEntryPaste").classList.toggle("active", mode === "paste");
+  document.querySelectorAll(".quick-field-entry").forEach(item => item.style.display = mode === "fields" ? "" : "none");
+  document.querySelectorAll(".quick-paste-entry").forEach(item => item.style.display = mode === "paste" ? "" : "none");
+  document.getElementById("quickAddPreview").innerHTML = "";
+}
+
+function quickAddRowHtml(mode, rowId) {
+  const primaryCell = mode === "sameChannel"
+    ? `<div class="quick-add-cell quick-add-primary-cell"><span class="quick-add-cell-label">購買人</span><input id="quickBuyer_${rowId}" placeholder="輸入或選擇購買人" oninput="renderQuickBuyerSuggestions('${rowId}')" onfocus="renderQuickBuyerSuggestions('${rowId}')" onkeydown="handleQuickAddEnter(event)"><div id="quickBuyerSuggestions_${rowId}" class="suggestion-box quick-row-suggestions"></div></div>`
+    : `<div class="quick-add-cell quick-add-primary-cell"><span class="quick-add-cell-label">通路訂單</span><input id="quickChannel_${rowId}" placeholder="搜尋或選擇通路" oninput="handleQuickRowChannelInput('${rowId}')" onfocus="renderQuickRowChannelSuggestions('${rowId}')" onkeydown="handleQuickAddEnter(event)"><input type="hidden" id="quickChannelId_${rowId}" value=""><div id="quickChannelSuggestions_${rowId}" class="suggestion-box quick-row-suggestions"></div></div>`;
+
+  return `
+    <div class="quick-add-row" data-row-id="${rowId}" data-mode="${mode}">
+      ${primaryCell}
+      <div class="quick-add-cell"><span class="quick-add-cell-label">數量</span><input id="quickQty_${rowId}" type="number" min="1" step="1" value="1" inputmode="numeric" onkeydown="handleQuickAddEnter(event)"></div>
+      <div class="quick-add-cell"><span class="quick-add-cell-label">金額</span><input id="quickAmount_${rowId}" type="number" min="0" step="1" placeholder="0" inputmode="decimal" onkeydown="handleQuickAddEnter(event)"></div>
+      <div class="quick-add-cell quick-add-note-cell"><span class="quick-add-cell-label">備註</span><input id="quickNote_${rowId}" placeholder="可不填" onkeydown="handleQuickAddEnter(event)"></div>
+      <button class="quick-add-remove-btn" title="刪除這一列" onclick="removeQuickAddRow('${rowId}')">✕</button>
+    </div>
+  `;
+}
+
+function addQuickAddRow(mode) {
+  const container = document.getElementById(mode === "sameBuyer" ? "quickSameBuyerRows" : "quickSameChannelRows");
+  if (!container) return;
+  quickAddRowCounter += 1;
+  const rowId = `qa_${quickAddRowCounter}`;
+  container.insertAdjacentHTML("beforeend", quickAddRowHtml(mode, rowId));
+}
+
+function removeQuickAddRow(rowId) {
+  document.querySelector(`.quick-add-row[data-row-id="${rowId}"]`)?.remove();
+  document.getElementById("quickAddPreview").innerHTML = "";
+}
+
+function handleQuickAddEnter(event) {
+  if (event.key !== "Enter" || event.isComposing) return;
+  event.preventDefault();
+
+  const row = event.target.closest(".quick-add-row");
+  if (!row) return;
+  const inputs = [...row.querySelectorAll("input:not([type='hidden'])")];
+  const currentIndex = inputs.indexOf(event.target);
+  if (currentIndex >= 0 && currentIndex < inputs.length - 1) {
+    inputs[currentIndex + 1].focus();
+    return;
+  }
+
+  const container = row.parentElement;
+  const rows = [...container.querySelectorAll(".quick-add-row")];
+  const rowIndex = rows.indexOf(row);
+  if (rowIndex < rows.length - 1) {
+    rows[rowIndex + 1].querySelector("input:not([type='hidden'])")?.focus();
+    return;
+  }
+
+  addQuickAddRow(row.dataset.mode);
+  container.lastElementChild?.querySelector("input:not([type='hidden'])")?.focus();
+}
+
+function renderQuickBuyerPicker(inputId, boxId) {
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(boxId);
+  if (!input || !box) return;
+
+  const q = input.value.trim();
+  const matched = db.buyers.filter(buyer => includesText(buyer.name, q)).slice(0, 12);
+  let html = matched.map(buyer => `<div class="suggestion-item" onclick="selectQuickBuyer('${inputId}','${boxId}','${jsString(buyer.name)}')"><div class="suggestion-primary">${escapeHtml(buyer.name)}</div></div>`).join("");
+
+  if (q && !db.buyers.some(buyer => sameText(buyer.name, q))) {
+    html += `<div class="suggestion-item" onclick="selectQuickBuyer('${inputId}','${boxId}','${jsString(q)}')"><div class="suggestion-primary">＋ 使用「${escapeHtml(q)}」</div></div>`;
+  }
+
+  box.innerHTML = html || `<div class="suggestion-item"><div class="suggestion-secondary">尚無購買人，可直接輸入新名字</div></div>`;
+}
+
+function renderQuickBuyerSuggestions(rowId) {
+  renderQuickBuyerPicker(`quickBuyer_${rowId}`, `quickBuyerSuggestions_${rowId}`);
+}
+
+function renderQuickCommonBuyerSuggestions() {
+  renderQuickBuyerPicker("quickBuyerName", "quickBuyerSuggestionBox");
+}
+
+function selectQuickBuyer(inputId, boxId, name) {
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(boxId);
+  if (input) input.value = name;
+  if (box) box.innerHTML = "";
+}
+
+function renderQuickChannelPicker(inputId, hiddenId, boxId) {
+  const input = document.getElementById(inputId);
+  const hidden = document.getElementById(hiddenId);
+  const box = document.getElementById(boxId);
+  if (!input || !hidden || !box) return;
+
+  const q = input.value.trim();
+  const selected = byId("channelOrders", hidden.value);
+  if (q && selected && !sameText(channelOrderLabel(selected), q)) hidden.value = "";
+
+  const recentIds = getRecentChannelOrderIds();
+  const orders = !q
+    ? recentIds.map(id => byId("channelOrders", id)).filter(Boolean).slice(0, 8)
+    : db.channelOrders.map(order => ({ order, score: scoreChannelOrder(order, q) })).filter(item => item.score > 0).sort((a, b) => b.score - a.score).slice(0, 12).map(item => item.order);
+
+  if (orders.length === 0) {
+    box.innerHTML = `<div class="suggestion-item"><div class="suggestion-secondary">${q ? "找不到通路訂單" : "開始輸入即可搜尋通路訂單"}</div></div>`;
+    return;
+  }
+
+  box.innerHTML = orders.map(order => {
+    const used = registeredQty(order.id);
+    const remain = Number(order.totalQty) - used;
+    const tag = recentIds.includes(order.id) ? `<span class="badge blue">最近</span>` : "";
+    return `<div class="suggestion-item" onclick="selectQuickChannelPicker('${inputId}','${hiddenId}','${boxId}','${order.id}')"><div class="suggestion-primary">${tag}${escapeHtml(channelOrderLabel(order))}</div><div class="suggestion-secondary">總 ${order.totalQty}｜已登記 ${used}｜剩餘 ${remain}</div></div>`;
+  }).join("");
+}
+
+function selectQuickChannelPicker(inputId, hiddenId, boxId, orderId) {
+  const order = byId("channelOrders", orderId);
+  if (!order) return;
+  const input = document.getElementById(inputId);
+  const hidden = document.getElementById(hiddenId);
+  const box = document.getElementById(boxId);
+  if (input) input.value = channelOrderLabel(order);
+  if (hidden) hidden.value = order.id;
+  if (box) box.innerHTML = "";
+  if (hiddenId === "quickChannelOrderId") {
+    const hint = document.getElementById("quickSelectedChannelHint");
+    if (hint) hint.innerHTML = "目前選擇：" + escapeHtml(channelOrderLabel(order));
+  }
+  saveRecentChannelOrder(order.id);
+}
+
+function renderQuickRowChannelSuggestions(rowId) {
+  renderQuickChannelPicker(`quickChannel_${rowId}`, `quickChannelId_${rowId}`, `quickChannelSuggestions_${rowId}`);
+}
+
+function handleQuickMainChannelInput() {
+  const hidden = document.getElementById("quickChannelOrderId");
+  const hint = document.getElementById("quickSelectedChannelHint");
+  if (hidden) hidden.value = "";
+  if (hint) hint.textContent = "尚未選擇通路訂單";
+  renderQuickChannelSuggestions();
+}
+
+function handleQuickRowChannelInput(rowId) {
+  const hidden = document.getElementById(`quickChannelId_${rowId}`);
+  if (hidden) hidden.value = "";
+  renderQuickRowChannelSuggestions(rowId);
 }
 
 function parseQtyAndNote(line) {
   const [mainRaw, ...noteParts] = String(line || "").split("#");
   const note = noteParts.join("#").trim();
   let main = mainRaw.trim();
-
   if (!main) return null;
 
+  let amount = 0;
+  const amountMatch = main.match(/(?:NT\$|TWD\s*|[$＄])\s*([\d,]+(?:\.\d+)?)/i);
+  if (amountMatch) {
+    amount = Number(amountMatch[1].replace(/,/g, ""));
+    main = main.replace(amountMatch[0], " ").trim();
+  }
+
   main = main.replace(/＋/g, "+").replace(/張/g, "").replace(/[xX＊*]/g, " x ");
-
   const plusMatch = main.match(/^(.+?)\s*\+\s*(\d+)$/);
-  if (plusMatch) {
-    return { name: plusMatch[1].trim(), qty: Number(plusMatch[2]), note };
-  }
-
+  if (plusMatch) return { name: plusMatch[1].trim(), qty: Number(plusMatch[2]), amount, note };
   const xMatch = main.match(/^(.+?)\s+x\s+(\d+)$/i);
-  if (xMatch) {
-    return { name: xMatch[1].trim(), qty: Number(xMatch[2]), note };
-  }
+  if (xMatch) return { name: xMatch[1].trim(), qty: Number(xMatch[2]), amount, note };
 
   const parts = main.split(/\s+/).filter(Boolean);
   const last = parts[parts.length - 1];
   if (/^\d+$/.test(last)) {
     parts.pop();
-    return { name: parts.join(" ").trim(), qty: Number(last), note };
+    return { name: parts.join(" ").trim(), qty: Number(last), amount, note };
   }
-
-  return { name: main.trim(), qty: 1, note };
+  return { name: main.trim(), qty: 1, amount, note };
 }
 
 function findBestChannelOrder(keyword) {
@@ -1056,6 +1242,7 @@ function parseQuickAddSameChannel() {
       channelOrderId,
       channelOrder,
       qty: parsed?.qty || 1,
+      amount: parsed?.amount || 0,
       note: parsed?.note || "",
       error: !channelOrder ? "尚未選擇通路訂單" : (!parsed?.name ? "缺少購買人名稱" : "")
     };
@@ -1074,15 +1261,71 @@ function parseQuickAddSameBuyer() {
       channelOrderId: channelOrder?.id || "",
       channelOrder,
       qty: parsed?.qty || 1,
+      amount: parsed?.amount || 0,
       note: parsed?.note || "",
       error: !buyerName ? "缺少購買人名稱" : (!channelOrder ? `找不到通路：${parsed?.name || ""}` : "")
     };
   });
 }
 
+function collectQuickAddFieldRows() {
+  const mode = document.getElementById("quickAddMode").value;
+  const selector = mode === "sameBuyer" ? "#quickSameBuyerRows .quick-add-row" : "#quickSameChannelRows .quick-add-row";
+  const commonBuyerName = document.getElementById("quickBuyerName")?.value.trim() || "";
+  const commonChannelOrderId = document.getElementById("quickChannelOrderId")?.value || "";
+
+  return [...document.querySelectorAll(selector)].map(row => {
+    const rowId = row.dataset.rowId;
+    const buyerName = mode === "sameBuyer" ? commonBuyerName : (document.getElementById(`quickBuyer_${rowId}`)?.value.trim() || "");
+    const channelOrderId = mode === "sameBuyer" ? (document.getElementById(`quickChannelId_${rowId}`)?.value || "") : commonChannelOrderId;
+    const channelOrder = byId("channelOrders", channelOrderId);
+    const qtyText = document.getElementById(`quickQty_${rowId}`)?.value ?? "";
+    const amountText = document.getElementById(`quickAmount_${rowId}`)?.value ?? "";
+    const qty = Number(qtyText);
+    const amount = amountText === "" ? 0 : Number(amountText);
+    const note = document.getElementById(`quickNote_${rowId}`)?.value.trim() || "";
+    const primaryValue = mode === "sameBuyer" ? (document.getElementById(`quickChannel_${rowId}`)?.value.trim() || "") : buyerName;
+
+    if (!primaryValue && !note && amountText === "" && (qtyText === "" || qtyText === "1")) return null;
+
+    const errors = [];
+    if (!buyerName) errors.push("缺少購買人");
+    if (!channelOrder) errors.push("尚未選擇通路訂單");
+    if (!Number.isInteger(qty) || qty < 1) errors.push("數量需為正整數");
+    if (!Number.isFinite(amount) || amount < 0) errors.push("金額格式不正確");
+
+    return { buyerName, channelOrderId, channelOrder, qty, amount, note, error: errors.join("、") };
+  }).filter(Boolean);
+}
+
+function annotateQuickAddRows(rows) {
+  const requestedByChannel = {};
+  rows.forEach(row => {
+    if (!row.channelOrderId || row.error) return;
+    requestedByChannel[row.channelOrderId] = (requestedByChannel[row.channelOrderId] || 0) + Number(row.qty || 0);
+  });
+
+  return rows.map(row => {
+    const warnings = [];
+    if (!row.error && row.channelOrder) {
+      const buyer = db.buyers.find(item => sameText(item.name, row.buyerName));
+      const duplicate = buyer && db.buyerOrders.some(order => order.buyerId === buyer.id && order.channelOrderId === row.channelOrderId);
+      if (duplicate) warnings.push("已有相同購買人／通路訂單");
+
+      const remain = Number(row.channelOrder.totalQty) - registeredQty(row.channelOrderId);
+      if ((requestedByChannel[row.channelOrderId] || 0) > remain) warnings.push(`合計超過剩餘 ${remain} 張`);
+    }
+    return { ...row, warning: warnings.join("、") };
+  });
+}
+
 function getQuickAddRows() {
   const mode = document.getElementById("quickAddMode").value;
-  return mode === "sameBuyer" ? parseQuickAddSameBuyer() : parseQuickAddSameChannel();
+  const entryMode = document.getElementById("quickEntryMode")?.value || "fields";
+  const rows = entryMode === "fields"
+    ? collectQuickAddFieldRows()
+    : (mode === "sameBuyer" ? parseQuickAddSameBuyer() : parseQuickAddSameChannel());
+  return annotateQuickAddRows(rows);
 }
 
 function previewQuickAdd() {
@@ -1095,30 +1338,35 @@ function previewQuickAdd() {
   }
 
   const totalQty = rows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
+  const totalAmount = rows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
   box.innerHTML = `
-    <p class="muted">共 ${rows.length} 筆，總數量 ${totalQty}</p>
-    <table class="quick-preview-table">
-      <thead>
-        <tr>
-          <th>購買人</th>
-          <th>通路訂單</th>
-          <th>數量</th>
-          <th>備註</th>
-          <th>狀態</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows.map(row => `
+    <p class="muted">共 ${rows.length} 筆｜總數量 ${totalQty}｜總金額 ${money(totalAmount)}｜全部預設已付款</p>
+    <div class="quick-preview-scroll">
+      <table class="quick-preview-table">
+        <thead>
           <tr>
-            <td>${escapeHtml(row.buyerName)}</td>
-            <td>${row.channelOrder ? escapeHtml(channelOrderLabel(row.channelOrder)) : "-"}</td>
-            <td>${row.qty}</td>
-            <td>${escapeHtml(row.note || "")}</td>
-            <td class="${row.error ? "quick-preview-warning" : ""}">${row.error ? escapeHtml(row.error) : "OK"}</td>
+            <th>購買人</th>
+            <th>通路訂單</th>
+            <th>數量</th>
+            <th>金額</th>
+            <th>備註</th>
+            <th>狀態</th>
           </tr>
-        `).join("")}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          ${rows.map(row => `
+            <tr>
+              <td>${escapeHtml(row.buyerName)}</td>
+              <td>${row.channelOrder ? escapeHtml(channelOrderLabel(row.channelOrder)) : "-"}</td>
+              <td>${row.qty}</td>
+              <td>${money(row.amount)}</td>
+              <td>${escapeHtml(row.note || "")}</td>
+              <td class="${row.error ? "quick-preview-warning" : (row.warning ? "quick-preview-notice" : "")}">${escapeHtml(row.error || row.warning || "可建立")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
@@ -1137,12 +1385,8 @@ function createQuickAddOrders() {
     return;
   }
 
-  const overRows = rows.filter(row => {
-    const remain = row.channelOrder.totalQty - registeredQty(row.channelOrderId);
-    return row.qty > remain;
-  });
-
-  if (overRows.length > 0 && !confirm(`有 ${overRows.length} 筆可能超過剩餘數量，仍要建立嗎？`)) {
+  const warningRows = rows.filter(row => row.warning);
+  if (warningRows.length > 0 && !confirm(`有 ${warningRows.length} 筆提醒（重複訂單或數量超過剩餘），仍要建立嗎？`)) {
     return;
   }
 
@@ -1155,8 +1399,8 @@ function createQuickAddOrders() {
       buyerId: buyer.id,
       channelOrderId: row.channelOrderId,
       qty: Number(row.qty || 1),
-      amount: 0,
-      paid: false,
+      amount: Number(row.amount || 0),
+      paid: true,
       shipped: false,
       delivery: { market: false, ordered: false, shipped: false },
       note: row.note || "",
@@ -1169,51 +1413,17 @@ function createQuickAddOrders() {
   saveData();
   closeModal();
   renderAll();
-  alert(`已建立 ${rows.length} 筆購買人訂單`);
+  const totalQty = rows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
+  const totalAmount = rows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  alert(`已建立 ${rows.length} 筆訂單\n總數量：${totalQty}\n總金額：${money(totalAmount)}\n付款狀態：已付款`);
 }
 
 function renderQuickChannelSuggestions() {
-  const input = document.getElementById("quickChannelSearch");
-  const box = document.getElementById("quickChannelSuggestionBox");
-  if (!input || !box) return;
-
-  const q = input.value.trim();
-  let orders = [];
-
-  if (!q) {
-    orders = getRecentChannelOrders();
-  } else {
-    orders = db.channelOrders
-      .filter(order => includesText(channelOrderLabel(order), q))
-      .slice(0, 12);
-  }
-
-  if (orders.length === 0) {
-    box.innerHTML = `<div class="suggestion-item"><div class="suggestion-secondary">找不到通路訂單</div></div>`;
-    return;
-  }
-
-  box.innerHTML = orders.map(order => {
-    const used = registeredQty(order.id);
-    const remain = Number(order.totalQty) - used;
-
-    return `
-      <div class="suggestion-item" onclick="selectQuickChannelOrder('${order.id}')">
-        <div class="suggestion-primary">${escapeHtml(channelOrderLabel(order))}</div>
-        <div class="suggestion-secondary">總 ${order.totalQty}｜已登記 ${used}｜剩餘 ${remain}｜${escapeHtml(order.status)}</div>
-      </div>
-    `;
-  }).join("");
+  renderQuickChannelPicker("quickChannelSearch", "quickChannelOrderId", "quickChannelSuggestionBox");
 }
 
 function selectQuickChannelOrder(id) {
-  const order = byId("channelOrders", id);
-  if (!order) return;
-  document.getElementById("quickChannelOrderId").value = id;
-  document.getElementById("quickChannelSearch").value = "";
-  document.getElementById("quickSelectedChannelHint").innerHTML = "已選擇：" + escapeHtml(channelOrderLabel(order));
-  saveRecentChannelOrder(id);
-  renderQuickChannelSuggestions();
+  selectQuickChannelPicker("quickChannelSearch", "quickChannelOrderId", "quickChannelSuggestionBox", id);
 }
 
 function openBuyerOrderForm(editId = "") {
@@ -1238,7 +1448,7 @@ function openBuyerOrderForm(editId = "") {
   openModal(editId ? "編輯購買人訂單" : "新增購買人訂單", `
     <div class="form-field">
       <label>購買人</label>
-      <input id="boBuyerSearch" placeholder="搜尋或選擇藝人 / 通路 / 批次" value="${escapeAttr(channelInputValue)}" oninput="renderChannelOrderSuggestions()" onfocus="renderChannelOrderSuggestions()">
+      <input id="boBuyerSearch" placeholder="輸入或選擇購買人" value="${escapeAttr(buyerName)}" oninput="renderBuyerSuggestions()" onfocus="renderBuyerSuggestions()">
       <div id="buyerSuggestionBox" class="suggestion-box"></div>
       <p class="muted">輸入關鍵字會即時篩選；找不到會自動新增。</p>
     </div>
