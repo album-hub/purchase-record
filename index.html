@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Fansign Manager</title>
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -43,6 +43,16 @@
           <p>未付款金額</p>
         </div>
       </div>
+    </div>
+
+    <div class="card receipt-stats-card">
+      <h2>收款與人數統計</h2>
+      <div class="receipt-summary-grid">
+        <div><strong id="statReceivedAmount">$0</strong><span>已收金額</span></div>
+        <div><strong id="statPaidBuyerCount">0</strong><span>已付款人數</span></div>
+        <div><strong id="statBuyerCount">0</strong><span>有訂單人數</span></div>
+      </div>
+      <div id="buyerPurchaseStats"></div>
     </div>
 
     <div class="card">
@@ -96,47 +106,166 @@
   <section id="page-settings" class="page">
     <div class="card">
       <h2>設定</h2>
-      <p class="muted">管理會重複使用的資料。V4.3 Final</p>
+      <p class="muted">管理會重複使用的資料。V5.2</p>
     </div>
 
-    <div class="card">
-      <h3>🎤 藝人管理</h3>
+    <details class="card settings-tree user-guide">
+      <summary>📘 功能使用說明書</summary>
+      <div class="settings-tree-body user-guide-body">
+        <details open>
+          <summary>1. 建議使用順序</summary>
+          <ol>
+            <li>先到設定建立藝人、通路、專輯類型與批次。</li>
+            <li>到「通路」建立通路總訂單與總下單數。</li>
+            <li>使用一般新增或快速新增，建立購買人訂單。</li>
+            <li>到確認中心核對付款時間、數量與金額。</li>
+            <li>完成登記與出貨後，把通路訂單放進完成群組。</li>
+          </ol>
+        </details>
+
+        <details>
+          <summary>2. 通路訂單</summary>
+          <ul>
+            <li>通路訂單依「藝人 → 通路 → 批次」分類。</li>
+            <li>總下單數會自動扣除已登記數量並顯示剩餘。</li>
+            <li>購買日期可輸入兩筆，例如 <code>0812 0815</code>。</li>
+            <li>簽售日期可輸入一筆，例如 <code>0820</code>。</li>
+            <li>「＋ 賣貨便連結」可輸入網址；儲存後可一鍵複製。</li>
+            <li>「💰 批量改金額」可輸入 <code>1=200 2=350</code>，依數量批量更新金額。</li>
+          </ul>
+        </details>
+
+        <details>
+          <summary>3. 快速新增購買人訂單</summary>
+          <ul>
+            <li>「多人同通路」：先選通路，再逐列輸入購買人、數量、金額與備註。</li>
+            <li>「同一人多通路」：先選購買人，再逐列選擇不同通路。</li>
+            <li>統一價格可設定 <code>1＝200、2＝350</code>，數量改變時自動帶入金額。</li>
+            <li>通路下拉只顯示尚未登記完成的訂單。</li>
+            <li>快速新增預設為已付款，建立前可先按「預覽」。</li>
+          </ul>
+        </details>
+
+        <details>
+          <summary>4. 購買人訂單</summary>
+          <ul>
+            <li>訂單依購買人、藝人、通路與詳細訂單分層收合。</li>
+            <li>離開訂單頁面後，所有 Tree View 會自動收起。</li>
+            <li>可切換付款狀態，並勾選建立賣場、下單及出貨。</li>
+            <li>若姓名建議沒有被選取，系統會帶入第一位符合者並顯示警告符號。</li>
+            <li>購買日期、簽售日期與賣貨便連結會跟通路訂單同步。</li>
+          </ul>
+        </details>
+
+        <details>
+          <summary>5. 訂單確認中心</summary>
+          <ul>
+            <li>自動列出所有購買人訂單。</li>
+            <li>分別確認付款時間、數量及金額。</li>
+            <li>確認付款時間時會記錄當下時間並設為已付款。</li>
+            <li>訂單金額被修改後，金額確認狀態會自動取消。</li>
+          </ul>
+        </details>
+
+        <details>
+          <summary>6. 完成專區</summary>
+          <ul>
+            <li>通路登記數量已滿，且所有購買人訂單都已出貨後，即符合完成條件。</li>
+            <li>符合條件但尚未分類時，系統會跳出提醒。</li>
+            <li>可選擇既有群組，或建立自訂名稱的新群組。</li>
+            <li>加入群組後，通路訂單狀態會自動改為「已完成」。</li>
+          </ul>
+        </details>
+
+        <details>
+          <summary>7. 備份與資料安全</summary>
+          <ul>
+            <li>重要修改前建議先在備份中心建立手動備份。</li>
+            <li>JSON 匯出可作為第二份外部備份。</li>
+            <li>匯入舊版備份時，系統會自動升級資料格式。</li>
+            <li>「清空全部資料」無法復原，操作前務必確認已有備份。</li>
+          </ul>
+        </details>
+      </div>
+    </details>
+
+    <details class="card settings-tree">
+      <summary>🎤 藝人管理</summary>
+      <div class="settings-tree-body">
       <div class="row">
         <input id="artistInput" placeholder="新增藝人，例如 Yuju" />
         <button onclick="addMaster('artists','artistInput')">新增</button>
       </div>
       <div id="artistList"></div>
-    </div>
+      </div>
+    </details>
 
-    <div class="card">
-      <h3>🏪 通路管理</h3>
+    <details class="card settings-tree">
+      <summary>🏪 通路管理</summary>
+      <div class="settings-tree-body">
       <div class="row">
         <input id="channelInput" placeholder="新增通路，例如 Soundwave" />
         <button onclick="addMaster('channels','channelInput')">新增</button>
       </div>
       <div id="channelList"></div>
-    </div>
+      </div>
+    </details>
 
-    <div class="card">
-      <h3>💿 專輯類型管理</h3>
+    <details class="card settings-tree">
+      <summary>💿 專輯類型管理</summary>
+      <div class="settings-tree-body">
       <div class="row">
         <input id="albumTypeInput" placeholder="新增類型，例如 線上" />
         <button onclick="addMaster('albumTypes','albumTypeInput')">新增</button>
       </div>
       <div id="albumTypeList"></div>
-    </div>
+      </div>
+    </details>
 
-    <div class="card">
-      <h3>👤 購買人管理</h3>
+    <details class="card settings-tree">
+      <summary>📦 批次管理</summary>
+      <div class="settings-tree-body">
+      <div class="row">
+        <input id="batchInput" placeholder="新增批次，例如 第一批" />
+        <button onclick="addMaster('batches','batchInput')">新增</button>
+      </div>
+      <div id="batchList"></div>
+      </div>
+    </details>
+
+    <details class="card settings-tree">
+      <summary>👤 購買人管理</summary>
+      <div class="settings-tree-body">
       <div class="row">
         <input id="buyerInput" placeholder="新增購買人，例如 小明" />
         <button onclick="addMaster('buyers','buyerInput')">新增</button>
       </div>
       <div id="buyerList"></div>
-    </div>
+      </div>
+    </details>
 
-    <div class="card backup-center-card">
-      <h3>🛡️ 備份中心</h3>
+    <details class="card settings-tree">
+      <summary>✅ 訂單確認中心</summary>
+      <div class="settings-tree-body">
+        <p class="muted">自動帶入購買人訂單，逐項確認付款時間、數量與金額。</p>
+        <div id="orderConfirmationCenter"></div>
+      </div>
+    </details>
+
+    <details class="card settings-tree">
+      <summary>🏁 完成專區</summary>
+      <div class="settings-tree-body">
+        <p class="muted">登記數量已滿且全部出貨的通路訂單，會自動出現在可選清單。</p>
+        <input id="completionGroupName" placeholder="自訂 Tree View 名稱，例如 Yuju 七月場" />
+        <div id="completionEligibleOrders"></div>
+        <button class="primary-btn" onclick="createCompletionGroup()">建立完成群組</button>
+        <div id="completionGroupList"></div>
+      </div>
+    </details>
+
+    <details class="card settings-tree backup-center-card">
+      <summary>🛡️ 備份中心</summary>
+      <div class="settings-tree-body">
       <p class="muted">建立備份後會直接存進瀏覽器備份紀錄，不用再自己保存一大串代碼。</p>
 
       <div class="backup-summary-grid">
@@ -151,21 +280,24 @@
       </div>
 
       <div class="row">
-        <input id="backupNameInput" placeholder="備份名稱，例如 V4.3 Final" />
+        <input id="backupNameInput" placeholder="備份名稱，例如 V5.0 Final" />
         <button class="primary-btn" onclick="manualCreateBackup()">建立備份</button>
       </div>
 
       <div id="backupCenterList"></div>
-    </div>
+      </div>
+    </details>
 
-    <div class="card">
-      <h3>💾 匯出 / 匯入 JSON</h3>
+    <details class="card settings-tree">
+      <summary>💾 匯出 / 匯入 JSON</summary>
+      <div class="settings-tree-body">
       <p class="muted">這是第二層保險；平常用上面的備份中心即可。</p>
       <button class="secondary-btn" onclick="exportBackup()">產生 JSON 備份</button>
       <textarea id="backupBox" placeholder="備份內容會出現在這裡，也可以貼上備份資料"></textarea>
       <button class="primary-btn" onclick="importBackup()">從 JSON 還原</button>
       <button class="danger-btn" onclick="clearAll()">清空全部資料</button>
-    </div>
+      </div>
+    </details>
 
   </section>
 
