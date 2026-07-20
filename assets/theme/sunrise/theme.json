@@ -1,0 +1,32 @@
+{
+  "id": "sunrise",
+  "name": "Sunrise",
+  "version": 1,
+  "logo": "icons/logo.svg",
+  "background": "background/sunrise-glow.svg",
+  "members": {
+    "sowon": "members/sowon.jpg",
+    "yerin": "members/yerin.jpg",
+    "eunha": "members/eunha.jpg",
+    "yuju": "members/yuju.jpg",
+    "sinb": "members/sinb.jpg",
+    "umji": "members/umji.jpg"
+  },
+  "music": {
+    "defaultCover": "music/default-cover.svg"
+  },
+  "colors": {
+    "background": "#080606",
+    "surface": "rgba(24, 17, 16, 0.88)",
+    "surfaceStrong": "#201614",
+    "text": "#fff7ef",
+    "muted": "#c9aea1",
+    "line": "rgba(232, 190, 126, 0.25)",
+    "gold": "#e7bd77",
+    "roseGold": "#d68f78",
+    "blush": "#f1b9a7",
+    "danger": "#ef7f83",
+    "success": "#72bf9b",
+    "warning": "#e6a95f"
+  }
+}

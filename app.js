@@ -2893,12 +2893,37 @@ function renderBuyerOrders() {
 }
 
 function renderHome() {
-  const today = new Date().toISOString().slice(0, 10);
+  const currentDate = new Date();
+  const today = currentDate.toISOString().slice(0, 10);
   const currentMonth = today.slice(0, 7);
 
   const unpaidOrders = db.buyerOrders.filter(o => !o.paid);
   const totalAmount = db.buyerOrders.reduce((sum, o) => sum + Number(o.amount || 0), 0);
   const unpaidAmount = unpaidOrders.reduce((sum, o) => sum + Number(o.amount || 0), 0);
+  const greeting = currentDate.getHours() < 5
+    ? "還沒休息嗎？"
+    : currentDate.getHours() < 12
+      ? "Good morning."
+      : currentDate.getHours() < 18
+        ? "Good afternoon."
+        : "Good evening.";
+
+  const greetingEl = document.getElementById("homeGreeting");
+  const greetingMessageEl = document.getElementById("homeGreetingMessage");
+  const dateEl = document.getElementById("homeDate");
+  const summaryEl = document.getElementById("homeSummary");
+  const versionEl = document.getElementById("appVersionLabel");
+  if (greetingEl) greetingEl.textContent = greeting;
+  if (greetingMessageEl) greetingMessageEl.textContent = HOME_GREETING_MESSAGE;
+  if (dateEl) {
+    dateEl.textContent = currentDate.toLocaleDateString("zh-TW", {
+      month: "long",
+      day: "numeric",
+      weekday: "short"
+    });
+  }
+  if (summaryEl) summaryEl.textContent = `${db.buyerOrders.length} 筆訂單 · ${unpaidOrders.length} 筆待付款`;
+  if (versionEl) versionEl.textContent = `V${APP_VERSION.split(".")[0]}`;
 
   document.getElementById("statOrders").textContent = db.buyerOrders.length;
   document.getElementById("statUnpaid").textContent = unpaidOrders.length;

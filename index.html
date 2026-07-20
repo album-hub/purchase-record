@@ -3,68 +3,135 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#17100f" />
   <title>Fansign Manager</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
 <header class="app-header">
-  <h1>Fansign Manager</h1>
-  <p>簽售代購管理系統</p>
+  <div class="app-header-inner">
+    <div class="brand-lockup">
+      <div class="brand-mark" aria-hidden="true">FM</div>
+      <div>
+        <h1>Fansign Manager</h1>
+        <p>簽售代購管理系統</p>
+      </div>
+    </div>
+    <span id="appVersionLabel" class="version-chip">V6</span>
+  </div>
 </header>
+
+<aside id="memberGallery" class="member-gallery" aria-label="GFRIEND 成員主題圖片">
+  <div class="member-gallery-brand">
+    <img id="themeRailLogo" src="assets/theme/sunrise/icons/logo.svg" alt="Sunrise Theme" />
+    <div>
+      <span>SUNRISE THEME</span>
+      <strong>GFRIEND</strong>
+    </div>
+  </div>
+  <div id="memberGalleryGrid" class="member-gallery-grid" aria-live="polite"></div>
+</aside>
 
 <main class="app-main">
 
   <section id="page-home" class="page active">
-    <div class="card hero-card">
-      <h2>首頁</h2>
-      <button class="primary-btn" onclick="openBuyerOrderForm()">＋ 新增購買人訂單</button>
-      <button class="secondary-btn" onclick="openQuickAddForm()">⚡ 快速新增</button>
-    </div>
-
-    <div class="grid dashboard-grid">
-      <div class="stat-card"><span id="statOrders">0</span><p>購買人訂單</p></div>
-      <div class="stat-card"><span id="statUnpaid">0</span><p>未付款</p></div>
-      <div class="stat-card"><span id="statNotOrdered">0</span><p>未下單</p></div>
-      <div class="stat-card"><span id="statNotArrived">0</span><p>未到貨</p></div>
-      <div class="stat-card"><span id="statTodayFansign">0</span><p>今天簽售</p></div>
-      <div class="stat-card"><span id="statMonthFansign">0</span><p>本月簽售</p></div>
-    </div>
-
-    <div class="card">
-      <h2>金額統計</h2>
-      <div class="money-grid">
-        <div>
-          <strong id="statTotalAmount">$0</strong>
-          <p>總金額</p>
-        </div>
-        <div>
-          <strong id="statUnpaidAmount">$0</strong>
-          <p>未付款金額</p>
+    <section class="home-hero" aria-labelledby="homeGreeting">
+      <div class="hero-copy">
+        <span class="hero-eyebrow">PERSONAL FANSIGN WORKSPACE</span>
+        <h2 id="homeGreeting">Good evening.</h2>
+        <p id="homeGreetingMessage">今天也一起把每筆進度整理好。</p>
+        <div class="hero-meta">
+          <span id="homeDate"></span>
+          <span class="hero-meta-dot" aria-hidden="true"></span>
+          <span id="homeSummary">準備讀取今日概況</span>
         </div>
       </div>
-    </div>
-
-    <details class="card receipt-stats-card home-stats-tree">
-      <summary>收款與人數統計</summary>
-      <div class="home-stats-tree-body">
-        <div class="receipt-summary-grid">
-          <div><strong id="statReceivedAmount">$0</strong><span>已收金額</span></div>
-          <div><strong id="statPaidBuyerCount">0</strong><span>已付款人數</span></div>
-          <div><strong id="statBuyerCount">0</strong><span>有訂單人數</span></div>
-        </div>
-        <div id="buyerPurchaseStats"></div>
+      <div class="hero-actions" aria-label="快速操作">
+        <button class="primary-btn hero-primary" onclick="openBuyerOrderForm()">＋ 新增購買人訂單</button>
+        <button class="secondary-btn hero-secondary" onclick="openQuickAddForm()">⚡ 快速新增</button>
       </div>
-    </details>
+      <div class="hero-decoration" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+    </section>
 
-    <div class="card">
-      <h2>快速提醒</h2>
-      <div id="homeAlerts"></div>
+    <section class="dashboard-section" aria-labelledby="overviewTitle">
+      <div class="section-heading-row dashboard-heading">
+        <div>
+          <span class="section-kicker">OVERVIEW</span>
+          <h2 id="overviewTitle">今日概況</h2>
+        </div>
+        <span class="section-note">即時依訂單資料更新</span>
+      </div>
+      <div class="grid dashboard-grid">
+        <div class="stat-card stat-lavender"><span class="stat-icon" aria-hidden="true">🧾</span><span id="statOrders">0</span><p>購買人訂單</p></div>
+        <div class="stat-card stat-rose"><span class="stat-icon" aria-hidden="true">💳</span><span id="statUnpaid">0</span><p>未付款</p></div>
+        <div class="stat-card stat-amber"><span class="stat-icon" aria-hidden="true">🛒</span><span id="statNotOrdered">0</span><p>未下單</p></div>
+        <div class="stat-card stat-sky"><span class="stat-icon" aria-hidden="true">📦</span><span id="statNotArrived">0</span><p>未到貨</p></div>
+        <div class="stat-card stat-mint"><span class="stat-icon" aria-hidden="true">✨</span><span id="statTodayFansign">0</span><p>今天簽售</p></div>
+        <div class="stat-card stat-indigo"><span class="stat-icon" aria-hidden="true">🗓</span><span id="statMonthFansign">0</span><p>本月簽售</p></div>
+      </div>
+    </section>
+
+    <div class="home-primary-grid">
+      <section class="card home-panel finance-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="section-kicker">FINANCE</span>
+            <h2>金額統計</h2>
+          </div>
+          <span class="panel-icon" aria-hidden="true">↗</span>
+        </div>
+        <div class="money-grid">
+          <div>
+            <p>總金額</p>
+            <strong id="statTotalAmount">$0</strong>
+          </div>
+          <div>
+            <p>未付款金額</p>
+            <strong id="statUnpaidAmount">$0</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="card home-panel alerts-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="section-kicker">REMINDERS</span>
+            <h2>快速提醒</h2>
+          </div>
+          <span class="panel-icon" aria-hidden="true">!</span>
+        </div>
+        <div id="homeAlerts" class="home-alerts"></div>
+      </section>
     </div>
 
-    <div class="card">
-      <h2>最近簽售</h2>
-      <div id="upcomingFansigns"></div>
+    <div class="home-secondary-grid">
+      <section class="card home-panel upcoming-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="section-kicker">UPCOMING</span>
+            <h2>最近簽售</h2>
+          </div>
+          <span class="panel-icon" aria-hidden="true">◷</span>
+        </div>
+        <div id="upcomingFansigns"></div>
+      </section>
+
+      <details class="card receipt-stats-card home-stats-tree home-panel">
+        <summary>
+          <span><small>DETAILS</small>收款與人數統計</span>
+        </summary>
+        <div class="home-stats-tree-body">
+          <div class="receipt-summary-grid">
+            <div><strong id="statReceivedAmount">$0</strong><span>已收金額</span></div>
+            <div><strong id="statPaidBuyerCount">0</strong><span>已付款人數</span></div>
+            <div><strong id="statBuyerCount">0</strong><span>有訂單人數</span></div>
+          </div>
+          <div id="buyerPurchaseStats"></div>
+        </div>
+      </details>
     </div>
   </section>
 
@@ -263,6 +330,64 @@
       </div>
     </details>
 
+    <details class="card settings-tree music-settings-card">
+      <summary>🎵 音樂設定</summary>
+      <div class="settings-tree-body">
+        <p id="musicSettingsStatus" class="muted">正在讀取音樂庫…</p>
+
+        <label class="music-setting-row" for="musicAutoplayToggle">
+          <span>
+            <strong>進入網站後嘗試播放</strong>
+            <small>瀏覽器可能仍會要求先點一下播放鍵</small>
+          </span>
+          <input id="musicAutoplayToggle" type="checkbox" />
+        </label>
+
+        <label class="music-setting-field" for="musicPlaybackMode">
+          <span>播放模式</span>
+          <select id="musicPlaybackMode">
+            <option value="list">清單循環</option>
+            <option value="single">單曲循環</option>
+            <option value="shuffle">隨機播放</option>
+          </select>
+        </label>
+
+        <label class="music-setting-field" for="musicSettingsVolume">
+          <span>音量 <strong id="musicSettingsVolumeValue">65%</strong></span>
+          <input id="musicSettingsVolume" type="range" min="0" max="100" step="1" value="65" />
+        </label>
+
+        <div class="music-settings-actions">
+          <button id="openMusicLibraryFromSettings" class="secondary-btn" type="button">開啟音樂庫</button>
+        </div>
+
+        <div class="music-recent-block">
+          <h3>最近播放</h3>
+          <div id="musicSettingsRecent" class="music-recent-list"></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="card settings-tree theme-settings-card">
+      <summary>🌅 Sunrise 主題與人物圖片</summary>
+      <div class="settings-tree-body">
+        <div class="theme-settings-intro">
+          <div>
+            <span class="section-kicker">THEME ASSETS</span>
+            <h3>六位成員圖片</h3>
+            <p class="muted">每一格都能單獨替換；圖片只保存在目前瀏覽器，不會寫進訂單資料或主程式。</p>
+          </div>
+          <button id="resetAllThemeImages" class="secondary-btn theme-reset-all" type="button">重設全部圖片</button>
+        </div>
+        <p id="themeSettingsStatus" class="theme-settings-status" role="status">正在讀取 Sunrise Theme…</p>
+        <div id="themeMemberSettings" class="theme-member-settings"></div>
+        <div class="theme-storage-note">
+          <strong>素材檔名</strong>
+          <p>預設圖片放在 <code>assets/theme/sunrise/members/</code>，檔名依序為 sowon、yerin、eunha、yuju、sinb、umji。</p>
+        </div>
+      </div>
+    </details>
+
     <details class="card settings-tree">
       <summary>✅ 訂單確認中心</summary>
       <div class="settings-tree-body">
@@ -343,6 +468,50 @@
 
 </main>
 
+<aside id="musicPlayer" class="music-player" aria-label="背景音樂播放器">
+  <button id="musicCollapseButton" class="music-collapse-btn" type="button" aria-label="收合播放器" aria-expanded="true">⌄</button>
+  <button id="musicLibraryButton" class="music-track-button" type="button" aria-label="開啟音樂庫">
+    <span id="musicCover" class="music-cover" aria-hidden="true"><span>FM</span></span>
+    <span class="music-track-copy">
+      <small>NOW PLAYING</small>
+      <strong id="musicTitle">尚未加入音樂</strong>
+      <span id="musicArtist">請在 music.json 新增歌曲</span>
+    </span>
+  </button>
+  <div class="music-controls" aria-label="播放控制">
+    <button id="musicPreviousButton" type="button" aria-label="上一首">‹</button>
+    <button id="musicPlayButton" class="music-play-btn" type="button" aria-label="播放">▶</button>
+    <button id="musicNextButton" type="button" aria-label="下一首">›</button>
+  </div>
+  <div class="music-progress-wrap">
+    <span id="musicCurrentTime">0:00</span>
+    <input id="musicProgress" type="range" min="0" max="1000" step="1" value="0" aria-label="播放進度" />
+    <span id="musicDuration">0:00</span>
+  </div>
+  <label class="music-volume-control" for="musicVolume">
+    <span aria-hidden="true">♫</span>
+    <input id="musicVolume" type="range" min="0" max="100" step="1" value="65" aria-label="音量" />
+  </label>
+  <p id="musicStatus" class="music-status" role="status">正在讀取音樂庫…</p>
+</aside>
+
+<div id="musicLibraryOverlay" class="music-library-overlay hidden" aria-hidden="true">
+  <section class="music-library-panel" role="dialog" aria-modal="true" aria-labelledby="musicLibraryTitle">
+    <header class="music-library-header">
+      <div>
+        <span class="section-kicker">YOUR COLLECTION</span>
+        <h2 id="musicLibraryTitle">Music Library</h2>
+      </div>
+      <button id="musicLibraryClose" class="icon-btn" type="button" aria-label="關閉音樂庫">✕</button>
+    </header>
+    <div id="musicLibraryList" class="music-library-list"></div>
+    <div class="music-library-recent">
+      <h3>最近播放</h3>
+      <div id="musicRecentList" class="music-recent-list"></div>
+    </div>
+  </section>
+</div>
+
 <nav class="bottom-nav">
   <button class="active" onclick="switchPage('home', this)">🏠<br>首頁</button>
   <button onclick="switchPage('channel-orders', this)">📦<br>通路</button>
@@ -363,6 +532,8 @@
 
 <script src="js/config.js"></script>
 <script src="js/utils.js"></script>
+<script src="js/theme-loader.js"></script>
 <script src="app.js"></script>
+<script src="js/music-player.js"></script>
 </body>
 </html>

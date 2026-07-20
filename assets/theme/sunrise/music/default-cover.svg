@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+  <defs>
+    <radialGradient id="bg" cx="42%" cy="30%" r="78%">
+      <stop stop-color="#f4c1a6"/>
+      <stop offset=".45" stop-color="#8f4e3d"/>
+      <stop offset="1" stop-color="#130c0b"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff0b8"/><stop offset="1" stop-color="#d58c62"/></linearGradient>
+  </defs>
+  <rect width="600" height="600" rx="86" fill="url(#bg)"/>
+  <circle cx="300" cy="300" r="158" fill="none" stroke="url(#gold)" stroke-width="6" opacity=".9"/>
+  <circle cx="300" cy="300" r="92" fill="none" stroke="#ffe9be" stroke-width="2" opacity=".55"/>
+  <path d="M210 310a90 90 0 0 1 180 0" fill="none" stroke="url(#gold)" stroke-width="16" stroke-linecap="round"/>
+  <path d="M300 183v42M172 248l38 22M428 248l-38 22" fill="none" stroke="#f8d997" stroke-width="10" stroke-linecap="round"/>
+  <text x="300" y="424" fill="#fff2dc" font-family="Georgia,serif" font-size="42" text-anchor="middle" letter-spacing="8">SUNRISE</text>
+</svg>
