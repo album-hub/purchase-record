@@ -37,6 +37,7 @@ const defaultData = {
   buyers: [],
   channelOrders: [],
   buyerOrders: [],
+  buyerBundles: [],
   completionGroups: []
 };
 
@@ -128,6 +129,16 @@ function normalizeLoadedData(data) {
       updatedAt: order.updatedAt || now()
     };
   });
+
+  data.buyerBundles = (data.buyerBundles || []).map(bundle => ({
+    id: bundle.id || uid("buyerBundle"),
+    buyerId: bundle.buyerId || "",
+    name: bundle.name || "單人多通路訂單",
+    buyerOrderIds: Array.isArray(bundle.buyerOrderIds) ? [...new Set(bundle.buyerOrderIds.filter(Boolean))] : [],
+    marketUrl: normalizeExternalUrl(bundle.marketUrl || ""),
+    createdAt: bundle.createdAt || now(),
+    updatedAt: bundle.updatedAt || now()
+  }));
 
   data.completionGroups = (data.completionGroups || []).map(group => ({
     id: group.id || uid("completionGroup"),
@@ -1310,6 +1321,7 @@ function channelOrderSuggestionHtml(order, tag = "") {
 
 let quickAddRowCounter = 0;
 let quickPriceRuleCounter = 0;
+let quickChannelGroupCounter = 0;
 
 function getAvailableChannelOrders(selectedId = "") {
   return db.channelOrders
@@ -1326,36 +1338,29 @@ function quickChannelOrderOptions(selectedId = "") {
   }).join("");
 }
 
-function getSavedQuickPriceRules() {
-  try {
-    return JSON.parse(localStorage.getItem(QUICK_PRICE_RULES_KEY)) || [];
-  } catch {
-    return [];
-  }
-}
-
-function addQuickPriceRule(qty = "", amount = "") {
-  const box = document.getElementById("quickPriceRules");
+function addQuickPriceRule(groupId, qty = "", amount = "") {
+  const box = document.getElementById(`quickPriceRules_${groupId}`);
   if (!box) return;
   quickPriceRuleCounter += 1;
   const id = `qpr_${quickPriceRuleCounter}`;
   box.insertAdjacentHTML("beforeend", `
     <div class="quick-price-rule" data-price-rule-id="${id}">
-      <label>數量<input class="quick-price-qty" type="number" min="1" step="1" value="${escapeAttr(qty)}" placeholder="例如 1" oninput="saveAndApplyQuickPriceRules()"></label>
+      <label>數量<input class="quick-price-qty" type="number" min="1" step="1" value="${escapeAttr(qty)}" placeholder="例如 1" oninput="saveAndApplyQuickPriceRules('${groupId}')"></label>
       <span>＝</span>
-      <label>金額<input class="quick-price-amount" type="number" min="0" step="1" value="${escapeAttr(amount)}" placeholder="例如 200" oninput="saveAndApplyQuickPriceRules()"></label>
-      <button class="quick-price-remove" onclick="removeQuickPriceRule('${id}')">✕</button>
+      <label>金額<input class="quick-price-amount" type="number" min="0" step="1" value="${escapeAttr(amount)}" placeholder="例如 200" oninput="saveAndApplyQuickPriceRules('${groupId}')"></label>
+      <button class="quick-price-remove" onclick="removeQuickPriceRule('${groupId}','${id}')">✕</button>
     </div>
   `);
 }
 
-function removeQuickPriceRule(id) {
+function removeQuickPriceRule(groupId, id) {
   document.querySelector(`[data-price-rule-id="${id}"]`)?.remove();
-  saveAndApplyQuickPriceRules();
+  saveAndApplyQuickPriceRules(groupId);
 }
 
-function getQuickPriceRulesFromForm() {
-  return [...document.querySelectorAll("#quickPriceRules .quick-price-rule")].map(row => {
+function getQuickPriceRulesFromForm(groupId) {
+  if (!groupId) return [];
+  return [...document.querySelectorAll(`#quickPriceRules_${groupId} .quick-price-rule`)].map(row => {
     const qtyText = row.querySelector(".quick-price-qty")?.value ?? "";
     const amountText = row.querySelector(".quick-price-amount")?.value ?? "";
     if (qtyText === "" || amountText === "") return null;
@@ -1363,19 +1368,18 @@ function getQuickPriceRulesFromForm() {
   }).filter(rule => rule && Number.isInteger(rule.qty) && rule.qty > 0 && Number.isFinite(rule.amount) && rule.amount >= 0);
 }
 
-function saveAndApplyQuickPriceRules() {
-  const rules = getQuickPriceRulesFromForm();
-  localStorage.setItem(QUICK_PRICE_RULES_KEY, JSON.stringify(rules));
-  document.querySelectorAll(".quick-add-row").forEach(row => applyQuickPriceForRow(row.dataset.rowId));
+function saveAndApplyQuickPriceRules(groupId) {
+  document.querySelectorAll(`.quick-add-row[data-group-id="${groupId}"]`).forEach(row => applyQuickPriceForRow(row.dataset.rowId));
 }
 
-function quickPriceForQty(qty) {
-  return getQuickPriceRulesFromForm().find(rule => rule.qty === Number(qty))?.amount;
+function quickPriceForQty(qty, groupId = "") {
+  return getQuickPriceRulesFromForm(groupId).find(rule => rule.qty === Number(qty))?.amount;
 }
 
 function applyQuickPriceForRow(rowId) {
   const qty = Number(document.getElementById(`quickQty_${rowId}`)?.value || 0);
-  const amount = quickPriceForQty(qty);
+  const groupId = document.querySelector(`.quick-add-row[data-row-id="${rowId}"]`)?.dataset.groupId || "";
+  const amount = quickPriceForQty(qty, groupId);
   const input = document.getElementById(`quickAmount_${rowId}`);
   if (input && amount !== undefined) input.value = amount;
 }
@@ -1411,47 +1415,9 @@ function openQuickAddForm() {
     <input type="hidden" id="quickAddMode" value="sameChannel">
     <input type="hidden" id="quickEntryMode" value="fields">
 
-    <details class="quick-price-panel" open>
-      <summary>統一數量／金額設定</summary>
-      <p class="muted">設定後，列上的數量改變時會自動帶入對應金額，例如 1＝200、2＝350。</p>
-      <div id="quickPriceRules"></div>
-      <button class="secondary-btn" onclick="addQuickPriceRule()">＋ 新增價格規則</button>
-    </details>
-
     <div id="quickSameChannelFields">
-      <div class="form-field">
-        <label>對應通路訂單</label>
-        <select id="quickChannelOrderId" onchange="handleQuickChannelSelect(this.value)">
-          ${quickChannelOrderOptions(defaultChannelOrder.id)}
-        </select>
-        <p class="muted">只顯示仍有剩餘數量、尚未登記完成的訂單。</p>
-      </div>
-
-      <div class="quick-add-date-panel">
-        <strong>這批訂單日期</strong>
-        <div class="quick-date-grid">
-          <label>購買日期（一至兩筆）
-            <input id="quickPurchaseDates" placeholder="例如 0812 0815" value="${escapeAttr(monthDayRangeFromDates(defaultChannelOrder.orderStartDate, defaultChannelOrder.orderEndDate))}">
-          </label>
-          <label>簽售日期
-            <input id="quickFansignDate" inputmode="numeric" placeholder="例如 0820" value="${escapeAttr(monthDayFromDate(defaultChannelOrder.fansignDate))}">
-          </label>
-        </div>
-      </div>
-
-      <div class="quick-field-entry">
-        <div class="quick-add-grid-head"><span>購買人</span><span>數量</span><span>金額</span><span>備註</span><span></span></div>
-        <div id="quickSameChannelRows" class="quick-add-rows"></div>
-        <button class="secondary-btn quick-add-row-button" onclick="addQuickAddRow('sameChannel')">＋ 新增一列</button>
-      </div>
-
-      <div class="quick-paste-entry" style="display:none;">
-        <div class="form-field">
-          <label>貼上名單</label>
-          <textarea id="quickListText" placeholder="小美 2 $1800 # 合併寄送&#10;阿凱 1 $900"></textarea>
-          <p class="muted">每行：姓名 數量 $金額 # 備註。金額與備註可省略。</p>
-        </div>
-      </div>
+      <div id="quickSameChannelGroups" class="quick-channel-groups"></div>
+      <button class="secondary-btn quick-channel-group-add" onclick="addQuickChannelGroup()">＋ 再新增一筆不同通路訂單</button>
     </div>
 
     <div id="quickSameBuyerFields" style="display:none;">
@@ -1480,15 +1446,102 @@ function openQuickAddForm() {
     <div class="quick-add-actions">
       <button class="secondary-btn" onclick="previewQuickAdd()">預覽</button>
       <button class="primary-btn" onclick="createQuickAddOrders()">一鍵建立（預設已付款）</button>
+      <button id="quickCreateContinueButton" class="green-btn" onclick="createQuickAddOrders(true)">建立後繼續下一批</button>
     </div>
     <div id="quickAddPreview"></div>
   `);
 
-  const savedRules = getSavedQuickPriceRules();
-  if (savedRules.length) savedRules.forEach(rule => addQuickPriceRule(rule.qty, rule.amount));
-  else addQuickPriceRule(1, "");
-  addQuickAddRow("sameChannel");
+  addQuickChannelGroup(defaultChannelOrder.id);
   addQuickAddRow("sameBuyer");
+}
+
+function quickChannelGroupHtml(groupId, selectedChannelOrderId = "") {
+  const selectedOrder = byId("channelOrders", selectedChannelOrderId) || getAvailableChannelOrders()[0];
+  return `
+    <section class="quick-channel-group" data-group-id="${groupId}">
+      <div class="quick-channel-group-heading">
+        <strong class="quick-channel-group-title">通路訂單</strong>
+        <button class="quick-channel-group-remove" onclick="removeQuickChannelGroup('${groupId}')">刪除此通路</button>
+      </div>
+
+      <div class="form-field">
+        <label>對應通路訂單</label>
+        <select id="quickChannelOrderId_${groupId}" onchange="handleQuickChannelSelect(this.value,'${groupId}')">
+          ${quickChannelOrderOptions(selectedOrder?.id || "")}
+        </select>
+        <p class="muted">只顯示仍有剩餘數量、尚未登記完成的訂單。</p>
+      </div>
+
+      <details class="quick-price-panel" open>
+        <summary>這筆通路的數量／金額設定</summary>
+        <p class="muted">只套用在這個通路區塊，例如 1＝200、2＝350。</p>
+        <div id="quickPriceRules_${groupId}"></div>
+        <button class="secondary-btn" onclick="addQuickPriceRule('${groupId}')">＋ 新增價格規則</button>
+      </details>
+
+      <div class="quick-add-date-panel">
+        <strong>這批訂單日期</strong>
+        <div class="quick-date-grid">
+          <label>購買日期（一至兩筆）
+            <input id="quickPurchaseDates_${groupId}" placeholder="例如 0812 0815" value="${escapeAttr(monthDayRangeFromDates(selectedOrder?.orderStartDate, selectedOrder?.orderEndDate))}">
+          </label>
+          <label>簽售日期
+            <input id="quickFansignDate_${groupId}" inputmode="numeric" placeholder="例如 0820" value="${escapeAttr(monthDayFromDate(selectedOrder?.fansignDate))}">
+          </label>
+        </div>
+      </div>
+
+      <div class="quick-field-entry">
+        <div class="quick-add-grid-head"><span>購買人</span><span>數量</span><span>金額</span><span>備註</span><span></span></div>
+        <div id="quickSameChannelRows_${groupId}" class="quick-add-rows"></div>
+        <button class="secondary-btn quick-add-row-button" onclick="addQuickAddRow('sameChannel','${groupId}')">＋ 新增購買人</button>
+      </div>
+
+      <div class="quick-paste-entry" style="display:none;">
+        <div class="form-field">
+          <label>貼上名單</label>
+          <textarea id="quickListText_${groupId}" placeholder="小美 2 $1800 # 合併寄送&#10;阿凱 1 $900"></textarea>
+          <p class="muted">每行：姓名 數量 $金額 # 備註。金額與備註可省略。</p>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function addQuickChannelGroup(selectedChannelOrderId = "") {
+  const container = document.getElementById("quickSameChannelGroups");
+  if (!container) return;
+  const usedChannelOrderIds = new Set([...container.querySelectorAll(".quick-channel-group select")].map(select => select.value).filter(Boolean));
+  const nextChannelOrder = getAvailableChannelOrders().find(order => !usedChannelOrderIds.has(order.id)) || getAvailableChannelOrders()[0];
+  const initialChannelOrderId = selectedChannelOrderId || nextChannelOrder?.id || "";
+  quickChannelGroupCounter += 1;
+  const groupId = `qcg_${quickChannelGroupCounter}`;
+  container.insertAdjacentHTML("beforeend", quickChannelGroupHtml(groupId, initialChannelOrderId));
+  addQuickPriceRule(groupId, 1, "");
+  addQuickAddRow("sameChannel", groupId);
+  refreshQuickChannelGroupLabels();
+  const entryMode = document.getElementById("quickEntryMode")?.value || "fields";
+  container.lastElementChild.querySelectorAll(".quick-field-entry").forEach(item => item.style.display = entryMode === "fields" ? "" : "none");
+  container.lastElementChild.querySelectorAll(".quick-paste-entry").forEach(item => item.style.display = entryMode === "paste" ? "" : "none");
+}
+
+function removeQuickChannelGroup(groupId) {
+  const groups = document.querySelectorAll("#quickSameChannelGroups .quick-channel-group");
+  if (groups.length <= 1) return alert("至少需要保留一筆通路訂單");
+  document.querySelector(`.quick-channel-group[data-group-id="${groupId}"]`)?.remove();
+  refreshQuickChannelGroupLabels();
+  const preview = document.getElementById("quickAddPreview");
+  if (preview) preview.innerHTML = "";
+}
+
+function refreshQuickChannelGroupLabels() {
+  const groups = [...document.querySelectorAll("#quickSameChannelGroups .quick-channel-group")];
+  groups.forEach((group, index) => {
+    const title = group.querySelector(".quick-channel-group-title");
+    const removeButton = group.querySelector(".quick-channel-group-remove");
+    if (title) title.textContent = `通路訂單 ${index + 1}`;
+    if (removeButton) removeButton.style.display = groups.length > 1 ? "" : "none";
+  });
 }
 
 function setQuickAddMode(mode) {
@@ -1497,40 +1550,47 @@ function setQuickAddMode(mode) {
   document.getElementById("quickModeSameBuyer").classList.toggle("active", mode === "sameBuyer");
   document.getElementById("quickSameChannelFields").style.display = mode === "sameChannel" ? "" : "none";
   document.getElementById("quickSameBuyerFields").style.display = mode === "sameBuyer" ? "" : "none";
+  const continueButton = document.getElementById("quickCreateContinueButton");
+  if (continueButton) continueButton.style.display = mode === "sameChannel" ? "" : "none";
+  continueButton?.parentElement?.classList.toggle("quick-add-actions-two", mode !== "sameChannel");
   document.getElementById("quickAddPreview").innerHTML = "";
   if (mode === "sameBuyer") renderQuickCommonBuyerSuggestions();
 }
 
-function handleQuickChannelSelect(channelOrderId) {
+function handleQuickChannelSelect(channelOrderId, groupId = "") {
   saveRecentChannelOrder(channelOrderId);
   const order = byId("channelOrders", channelOrderId);
-  const purchaseInput = document.getElementById("quickPurchaseDates");
-  const fansignInput = document.getElementById("quickFansignDate");
+  const purchaseInput = document.getElementById(groupId ? `quickPurchaseDates_${groupId}` : "quickPurchaseDates");
+  const fansignInput = document.getElementById(groupId ? `quickFansignDate_${groupId}` : "quickFansignDate");
   if (purchaseInput) purchaseInput.value = order ? monthDayRangeFromDates(order.orderStartDate, order.orderEndDate) : "";
   if (fansignInput) fansignInput.value = order ? monthDayFromDate(order.fansignDate) : "";
 }
 
 function applyQuickAddChannelDates() {
   if (document.getElementById("quickAddMode")?.value !== "sameChannel") return true;
-  const channelOrderId = document.getElementById("quickChannelOrderId")?.value || "";
-  const order = byId("channelOrders", channelOrderId);
-  if (!order) return false;
+  const groups = [...document.querySelectorAll("#quickSameChannelGroups .quick-channel-group")];
+  for (const group of groups) {
+    const groupId = group.dataset.groupId;
+    const channelOrderId = document.getElementById(`quickChannelOrderId_${groupId}`)?.value || "";
+    const order = byId("channelOrders", channelOrderId);
+    if (!order) return false;
 
-  const purchaseRaw = document.getElementById("quickPurchaseDates")?.value.trim() || "";
-  const fansignRaw = document.getElementById("quickFansignDate")?.value.trim() || "";
-  const purchaseDates = currentYearDatesFromMonthDayList(purchaseRaw);
-  const fansignDate = currentYearDateFromMonthDay(fansignRaw);
-  if ((purchaseRaw && !purchaseDates) || (fansignRaw && !fansignDate)) {
-    alert("日期格式不正確；購買日期請輸入例如 0812 0815，簽售日期請輸入例如 0820");
-    return false;
-  }
+    const purchaseRaw = document.getElementById(`quickPurchaseDates_${groupId}`)?.value.trim() || "";
+    const fansignRaw = document.getElementById(`quickFansignDate_${groupId}`)?.value.trim() || "";
+    const purchaseDates = currentYearDatesFromMonthDayList(purchaseRaw);
+    const fansignDate = currentYearDateFromMonthDay(fansignRaw);
+    if ((purchaseRaw && !purchaseDates) || (fansignRaw && !fansignDate)) {
+      alert("日期格式不正確；購買日期請輸入例如 0812 0815，簽售日期請輸入例如 0820");
+      return false;
+    }
 
-  if (purchaseRaw) {
-    order.orderStartDate = purchaseDates[0] || "";
-    order.orderEndDate = purchaseDates[1] || "";
+    if (purchaseRaw) {
+      order.orderStartDate = purchaseDates[0] || "";
+      order.orderEndDate = purchaseDates[1] || "";
+    }
+    if (fansignRaw) order.fansignDate = fansignDate;
+    if (purchaseRaw || fansignRaw) order.updatedAt = now();
   }
-  if (fansignRaw) order.fansignDate = fansignDate;
-  if (purchaseRaw || fansignRaw) order.updatedAt = now();
   return true;
 }
 
@@ -1543,13 +1603,13 @@ function setQuickAddEntryMode(mode) {
   document.getElementById("quickAddPreview").innerHTML = "";
 }
 
-function quickAddRowHtml(mode, rowId) {
+function quickAddRowHtml(mode, rowId, groupId = "") {
   const primaryCell = mode === "sameChannel"
     ? `<div class="quick-add-cell quick-add-primary-cell"><span class="quick-add-cell-label">購買人</span><input id="quickBuyer_${rowId}" placeholder="輸入或選擇購買人" oninput="handleQuickBuyerInput('${rowId}')" onfocus="renderQuickBuyerSuggestions('${rowId}')" onkeydown="handleQuickAddEnter(event)"><input type="hidden" id="quickBuyerId_${rowId}" value=""><div id="quickBuyerSuggestions_${rowId}" class="suggestion-box quick-row-suggestions"></div></div>`
     : `<div class="quick-add-cell quick-add-primary-cell"><span class="quick-add-cell-label">通路訂單</span><select id="quickChannelId_${rowId}" onchange="saveRecentChannelOrder(this.value)">${quickChannelOrderOptions()}</select></div>`;
 
   return `
-    <div class="quick-add-row" data-row-id="${rowId}" data-mode="${mode}">
+    <div class="quick-add-row" data-row-id="${rowId}" data-mode="${mode}" data-group-id="${groupId}">
       ${primaryCell}
       <div class="quick-add-cell"><span class="quick-add-cell-label">數量</span><div class="qty-stepper"><button onclick="stepQuickAddQty('${rowId}',-1)">−</button><input id="quickQty_${rowId}" type="number" min="1" step="1" value="1" inputmode="numeric" oninput="applyQuickPriceForRow('${rowId}')" onkeydown="handleQuickAddEnter(event)"><button onclick="stepQuickAddQty('${rowId}',1)">＋</button></div></div>
       <div class="quick-add-cell"><span class="quick-add-cell-label">金額</span><input id="quickAmount_${rowId}" type="number" min="0" step="1" placeholder="0" inputmode="decimal" onkeydown="handleQuickAddEnter(event)"></div>
@@ -1559,12 +1619,12 @@ function quickAddRowHtml(mode, rowId) {
   `;
 }
 
-function addQuickAddRow(mode) {
-  const container = document.getElementById(mode === "sameBuyer" ? "quickSameBuyerRows" : "quickSameChannelRows");
+function addQuickAddRow(mode, groupId = "") {
+  const container = document.getElementById(mode === "sameBuyer" ? "quickSameBuyerRows" : `quickSameChannelRows_${groupId}`);
   if (!container) return;
   quickAddRowCounter += 1;
   const rowId = `qa_${quickAddRowCounter}`;
-  container.insertAdjacentHTML("beforeend", quickAddRowHtml(mode, rowId));
+  container.insertAdjacentHTML("beforeend", quickAddRowHtml(mode, rowId, groupId));
   applyQuickPriceForRow(rowId);
 }
 
@@ -1594,7 +1654,7 @@ function handleQuickAddEnter(event) {
     return;
   }
 
-  addQuickAddRow(row.dataset.mode);
+  addQuickAddRow(row.dataset.mode, row.dataset.groupId || "");
   container.lastElementChild?.querySelector("input:not([type='hidden'])")?.focus();
 }
 
@@ -1606,8 +1666,7 @@ function renderQuickBuyerPicker(inputId, hiddenId, boxId) {
   const q = input.value.trim();
   const matched = db.buyers
     .filter(buyer => includesText(buyer.name, q))
-    .sort((a, b) => compareDisplayNames(a.name, b.name))
-    .slice(0, 12);
+    .sort((a, b) => compareDisplayNames(a.name, b.name));
   let html = matched.map(buyer => `<div class="suggestion-item" onclick="selectQuickBuyer('${inputId}','${hiddenId}','${boxId}','${jsString(buyer.name)}','${buyer.id}')"><div class="suggestion-primary">${escapeHtml(buyer.name)}</div></div>`).join("");
 
   if (q && !db.buyers.some(buyer => sameText(buyer.name, q))) {
@@ -1764,22 +1823,25 @@ function findBestChannelOrder(keyword) {
 }
 
 function parseQuickAddSameChannel() {
-  const channelOrderId = document.getElementById("quickChannelOrderId").value;
-  const channelOrder = byId("channelOrders", channelOrderId);
-  const lines = document.getElementById("quickListText").value.split(/\n+/).map(l => l.trim()).filter(Boolean);
-
-  return lines.map(line => {
-    const parsed = parseQtyAndNote(line);
-    return {
-      buyerName: parsed?.name || "",
-      selectedBuyerId: "__new__",
-      channelOrderId,
-      channelOrder,
-      qty: parsed?.qty || 1,
-      amount: parsed?.amount || 0,
-      note: parsed?.note || "",
-      error: !channelOrder ? "尚未選擇通路訂單" : (!parsed?.name ? "缺少購買人名稱" : "")
-    };
+  return [...document.querySelectorAll("#quickSameChannelGroups .quick-channel-group")].flatMap(group => {
+    const groupId = group.dataset.groupId;
+    const channelOrderId = document.getElementById(`quickChannelOrderId_${groupId}`)?.value || "";
+    const channelOrder = byId("channelOrders", channelOrderId);
+    const lines = (document.getElementById(`quickListText_${groupId}`)?.value || "").split(/\n+/).map(l => l.trim()).filter(Boolean);
+    return lines.map(line => {
+      const parsed = parseQtyAndNote(line);
+      return {
+        buyerName: parsed?.name || "",
+        selectedBuyerId: "__new__",
+        channelOrderId,
+        channelOrder,
+        qty: parsed?.qty || 1,
+        amount: parsed?.amount || 0,
+        note: parsed?.note || "",
+        priceGroupId: groupId,
+        error: !channelOrder ? "尚未選擇通路訂單" : (!parsed?.name ? "缺少購買人名稱" : "")
+      };
+    });
   });
 }
 
@@ -1805,16 +1867,18 @@ function parseQuickAddSameBuyer() {
 
 function collectQuickAddFieldRows() {
   const mode = document.getElementById("quickAddMode").value;
-  const selector = mode === "sameBuyer" ? "#quickSameBuyerRows .quick-add-row" : "#quickSameChannelRows .quick-add-row";
   const commonBuyerName = document.getElementById("quickBuyerName")?.value.trim() || "";
   const commonBuyerId = document.getElementById("quickBuyerId")?.value || "";
-  const commonChannelOrderId = document.getElementById("quickChannelOrderId")?.value || "";
+  const actualSelector = mode === "sameBuyer" ? "#quickSameBuyerRows .quick-add-row" : "#quickSameChannelGroups .quick-add-row";
 
-  return [...document.querySelectorAll(selector)].map(row => {
+  return [...document.querySelectorAll(actualSelector)].map(row => {
     const rowId = row.dataset.rowId;
     const buyerName = mode === "sameBuyer" ? commonBuyerName : (document.getElementById(`quickBuyer_${rowId}`)?.value.trim() || "");
     const selectedBuyerId = mode === "sameBuyer" ? commonBuyerId : (document.getElementById(`quickBuyerId_${rowId}`)?.value || "");
-    const channelOrderId = mode === "sameBuyer" ? (document.getElementById(`quickChannelId_${rowId}`)?.value || "") : commonChannelOrderId;
+    const groupId = row.dataset.groupId || "";
+    const channelOrderId = mode === "sameBuyer"
+      ? (document.getElementById(`quickChannelId_${rowId}`)?.value || "")
+      : (document.getElementById(`quickChannelOrderId_${groupId}`)?.value || "");
     const channelOrder = byId("channelOrders", channelOrderId);
     const qtyText = document.getElementById(`quickQty_${rowId}`)?.value ?? "";
     const amountText = document.getElementById(`quickAmount_${rowId}`)?.value ?? "";
@@ -1831,7 +1895,7 @@ function collectQuickAddFieldRows() {
     if (!Number.isInteger(qty) || qty < 1) errors.push("數量需為正整數");
     if (!Number.isFinite(amount) || amount < 0) errors.push("金額格式不正確");
 
-    return { buyerName, selectedBuyerId, channelOrderId, channelOrder, qty, amount, note, error: errors.join("、") };
+    return { buyerName, selectedBuyerId, channelOrderId, channelOrder, qty, amount, note, priceGroupId: groupId, error: errors.join("、") };
   }).filter(Boolean);
 }
 
@@ -1863,7 +1927,7 @@ function getQuickAddRows() {
     ? collectQuickAddFieldRows()
     : (mode === "sameBuyer" ? parseQuickAddSameBuyer() : parseQuickAddSameChannel());
   const pricedRows = rows.map(row => {
-    const ruleAmount = quickPriceForQty(row.qty);
+    const ruleAmount = quickPriceForQty(row.qty, row.priceGroupId || "");
     return Number(row.amount || 0) === 0 && ruleAmount !== undefined ? { ...row, amount: ruleAmount } : row;
   });
   return annotateQuickAddRows(pricedRows);
@@ -1911,7 +1975,7 @@ function previewQuickAdd() {
   `;
 }
 
-function createQuickAddOrders() {
+function createQuickAddOrders(keepOpen = false) {
   const rows = getQuickAddRows();
 
   if (rows.length === 0) {
@@ -1957,12 +2021,34 @@ function createQuickAddOrders() {
     saveRecentChannelOrder(row.channelOrderId);
   });
 
+  const mode = document.getElementById("quickAddMode")?.value || "sameChannel";
+  const currentChannelOrderId = document.querySelector("#quickSameChannelGroups .quick-channel-group select")?.value || "";
   saveData();
-  closeModal();
   renderAll();
   const totalQty = rows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
   const totalAmount = rows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
-  alert(`已建立 ${rows.length} 筆訂單\n總數量：${totalQty}\n總金額：${money(totalAmount)}\n付款狀態：已付款`);
+  const summary = `已建立 ${rows.length} 筆訂單\n總數量：${totalQty}\n總金額：${money(totalAmount)}\n付款狀態：已付款`;
+
+  if (keepOpen && mode === "sameChannel") {
+    const availableOrders = getAvailableChannelOrders();
+    if (availableOrders.length === 0) {
+      closeModal();
+      alert(`${summary}\n目前已沒有尚未登記完成的通路訂單。`);
+      return;
+    }
+
+    const nextOrder = availableOrders.find(order => order.id === currentChannelOrderId) || availableOrders[0];
+    const groupBox = document.getElementById("quickSameChannelGroups");
+    const preview = document.getElementById("quickAddPreview");
+    if (groupBox) groupBox.innerHTML = "";
+    if (preview) preview.innerHTML = "";
+    addQuickChannelGroup(nextOrder.id);
+    alert(`${summary}\n可以繼續建立下一批。`);
+    return;
+  }
+
+  closeModal();
+  alert(summary);
 }
 
 function renderQuickChannelSuggestions() {
@@ -2342,6 +2428,10 @@ function toggleShipped(id) {
 function deleteBuyerOrder(id) {
   if (!confirm("確定刪除這筆購買人訂單嗎？")) return;
   db.buyerOrders = db.buyerOrders.filter(o => o.id !== id);
+  db.buyerBundles = (db.buyerBundles || []).map(bundle => ({
+    ...bundle,
+    buyerOrderIds: (bundle.buyerOrderIds || []).filter(orderId => orderId !== id)
+  })).filter(bundle => bundle.buyerOrderIds.length > 0);
   saveData();
   renderAll();
 }
@@ -2393,6 +2483,163 @@ function toggleBuyerGroup(buyerId) {
   collapsed[buyerId] = !collapsed[buyerId];
   saveCollapsedBuyerGroups(collapsed);
   renderBuyerOrders();
+}
+
+function buyerBundleOrders(bundle) {
+  return (bundle?.buyerOrderIds || [])
+    .map(orderId => byId("buyerOrders", orderId))
+    .filter(order => order && order.buyerId === bundle.buyerId);
+}
+
+function openBuyerBundleForm() {
+  const buyerIds = [...new Set(db.buyerOrders.map(order => order.buyerId).filter(Boolean))]
+    .sort((a, b) => compareDisplayNames(nameOf("buyers", a), nameOf("buyers", b)));
+  if (buyerIds.length === 0) return alert("目前沒有可匯集的購買人訂單");
+
+  openModal("建立單人多通路訂單", `
+    <div class="form-field">
+      <label>購買人</label>
+      <select id="buyerBundleBuyerId" onchange="handleBuyerBundleBuyerChange()">
+        ${buyerIds.map(buyerId => `<option value="${buyerId}">${escapeHtml(nameOf("buyers", buyerId))}</option>`).join("")}
+      </select>
+    </div>
+    <div class="form-field">
+      <label>匯集訂單名稱</label>
+      <input id="buyerBundleName" placeholder="例如 小明七月多通路" />
+    </div>
+    <p class="muted">請至少選擇兩筆不同通路的訂單。原始訂單仍會保留在原本 Tree View。</p>
+    <div id="buyerBundleOrderChoices" class="buyer-bundle-choices"></div>
+    <button class="primary-btn" onclick="createBuyerBundle()">建立匯集訂單</button>
+  `);
+  renderBuyerBundleOrderChoices();
+}
+
+function handleBuyerBundleBuyerChange() {
+  const buyerId = document.getElementById("buyerBundleBuyerId")?.value || "";
+  const nameInput = document.getElementById("buyerBundleName");
+  if (nameInput) nameInput.value = `${nameOf("buyers", buyerId)} 多通路訂單`;
+  renderBuyerBundleOrderChoices();
+}
+
+function renderBuyerBundleOrderChoices() {
+  const buyerId = document.getElementById("buyerBundleBuyerId")?.value || "";
+  const box = document.getElementById("buyerBundleOrderChoices");
+  const nameInput = document.getElementById("buyerBundleName");
+  if (!box) return;
+  if (nameInput && !nameInput.value.trim()) nameInput.value = `${nameOf("buyers", buyerId)} 多通路訂單`;
+
+  const usedIds = new Set((db.buyerBundles || []).flatMap(bundle => bundle.buyerOrderIds || []));
+  const orders = db.buyerOrders
+    .filter(order => order.buyerId === buyerId)
+    .sort((a, b) => compareDisplayNames(buyerOrderSearchText(a), buyerOrderSearchText(b)));
+
+  box.innerHTML = orders.length ? orders.map(order => {
+    const channelOrder = byId("channelOrders", order.channelOrderId);
+    const alreadyUsed = usedIds.has(order.id);
+    return `
+      <label class="buyer-bundle-choice ${alreadyUsed ? "disabled" : ""}">
+        <input type="checkbox" name="buyerBundleOrder" value="${order.id}" ${alreadyUsed ? "disabled" : ""}>
+        <span>
+          <strong>${channelOrder ? escapeHtml(channelOrderLabel(channelOrder)) : "通路訂單不存在"}</strong>
+          <small>${order.qty} 張｜${money(order.amount)}${alreadyUsed ? "｜已加入其他匯集訂單" : ""}</small>
+        </span>
+      </label>
+    `;
+  }).join("") : `<p class="muted">這位購買人目前沒有訂單。</p>`;
+}
+
+function createBuyerBundle() {
+  const buyerId = document.getElementById("buyerBundleBuyerId")?.value || "";
+  const name = document.getElementById("buyerBundleName")?.value.trim() || `${nameOf("buyers", buyerId)} 多通路訂單`;
+  const buyerOrderIds = [...document.querySelectorAll("input[name='buyerBundleOrder']:checked")].map(input => input.value);
+  const orders = buyerOrderIds.map(orderId => byId("buyerOrders", orderId)).filter(Boolean);
+  const distinctChannels = new Set(orders.map(order => order.channelOrderId));
+
+  if (!buyerId || orders.length < 2 || distinctChannels.size < 2) {
+    alert("請選擇同一位購買人的至少兩筆不同通路訂單");
+    return;
+  }
+
+  db.buyerBundles.push({
+    id: uid("buyerBundle"),
+    buyerId,
+    name,
+    buyerOrderIds,
+    marketUrl: "",
+    createdAt: now(),
+    updatedAt: now()
+  });
+  saveData();
+  closeModal();
+  renderAll();
+}
+
+function deleteBuyerBundle(bundleId) {
+  if (!confirm("確定刪除這個匯集訂單嗎？原始訂單不會被刪除。")) return;
+  db.buyerBundles = (db.buyerBundles || []).filter(bundle => bundle.id !== bundleId);
+  saveData();
+  renderAll();
+}
+
+function promptBuyerBundleMarketUrl(bundleId) {
+  const bundle = byId("buyerBundles", bundleId);
+  if (!bundle) return;
+  const input = prompt("請輸入這筆匯集訂單的賣貨便賣場連結", bundle.marketUrl || "");
+  if (input === null) return;
+  const marketUrl = normalizeExternalUrl(input);
+  if (!marketUrl) return alert("賣貨便連結格式不正確");
+  bundle.marketUrl = marketUrl;
+  bundle.updatedAt = now();
+  saveData();
+  renderAll();
+}
+
+async function copyBuyerBundleMarketUrl(bundleId) {
+  const bundle = byId("buyerBundles", bundleId);
+  const url = normalizeExternalUrl(bundle?.marketUrl || "");
+  if (!url) return alert("這筆匯集訂單沒有可複製的賣貨便連結");
+  try {
+    await navigator.clipboard.writeText(url);
+    alert("賣貨便連結已複製");
+  } catch {
+    prompt("請複製賣貨便連結", url);
+  }
+}
+
+function renderBuyerBundleMarketButton(bundle) {
+  return bundle.marketUrl
+    ? `<button class="market-link" onclick="copyBuyerBundleMarketUrl('${bundle.id}')">📋 複製賣貨便連結</button>`
+    : `<button class="market-link market-link-empty" onclick="promptBuyerBundleMarketUrl('${bundle.id}')">＋ 新增賣貨便連結</button>`;
+}
+
+function renderBuyerBundles() {
+  const box = document.getElementById("buyerBundleList");
+  if (!box) return;
+  const q = document.getElementById("buyerBundleSearch")?.value.trim() || "";
+  const bundles = [...(db.buyerBundles || [])]
+    .map(bundle => ({ bundle, orders: buyerBundleOrders(bundle) }))
+    .filter(item => item.orders.length > 0)
+    .filter(({ bundle, orders }) => includesText(`${bundle.name} ${nameOf("buyers", bundle.buyerId)} ${orders.map(buyerOrderSearchText).join(" ")}`, q))
+    .sort((a, b) => compareDisplayNames(`${nameOf("buyers", a.bundle.buyerId)} ${a.bundle.name}`, `${nameOf("buyers", b.bundle.buyerId)} ${b.bundle.name}`));
+
+  if (bundles.length === 0) {
+    box.innerHTML = `<p class="muted">目前沒有符合的單人多通路匯集訂單。</p>`;
+    return;
+  }
+
+  box.innerHTML = bundles.map(({ bundle, orders }) => `
+    <details class="buyer-bundle-card">
+      <summary>
+        <span>👤 ${escapeHtml(nameOf("buyers", bundle.buyerId))}｜${escapeHtml(bundle.name)}</span>
+        <span class="tree-node-count">${orders.length} 筆</span>
+      </summary>
+      <div class="buyer-bundle-body">
+        ${renderBuyerBundleMarketButton(bundle)}
+        <div class="tree-order-wrap">${orders.map(order => renderBuyerOrderCard(order, true)).join("")}</div>
+        <button class="danger-btn" onclick="deleteBuyerBundle('${bundle.id}')">刪除匯集訂單</button>
+      </div>
+    </details>
+  `).join("");
 }
 
 function renderBuyerOrderCard(order, compact = false) {
@@ -2873,45 +3120,109 @@ function confirmationTimeLabel(value) {
   return Number.isNaN(date.getTime()) ? "✓ 已確認付款時間" : `✓ ${date.toLocaleString("zh-TW", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
 }
 
+function isOrderConfirmationComplete(order) {
+  const confirmation = ensureOrderConfirmation(order);
+  return Boolean(confirmation.paymentConfirmedAt && confirmation.qtyConfirmed && confirmation.amountConfirmed);
+}
+
+function confirmationOrderHtml(order, options = {}) {
+  const confirmation = ensureOrderConfirmation(order);
+  const channelOrder = byId("channelOrders", order.channelOrderId);
+  const completed = isOrderConfirmationComplete(order);
+  const referenceTime = confirmation.paymentConfirmedAt || order.createdAt || "";
+  return `
+    <div class="confirmation-item ${completed ? "completed" : ""}">
+      <div class="confirmation-title">
+        <strong>${completed ? "✅" : "⏳"} ${escapeHtml(nameOf("buyers", order.buyerId))}</strong>
+        <span>${channelOrder ? escapeHtml(channelOrderLabel(channelOrder)) : "通路訂單不存在"}</span>
+      </div>
+      <div class="confirmation-values">
+        <span>數量：${order.qty}</span>
+        <span>金額：${money(order.amount)}</span>
+        <span>付款：${order.paid ? "已付款" : "未付款"}</span>
+      </div>
+      ${options.showReferenceTime ? `<p class="muted">比對時間：${escapeHtml(confirmationTimeLabel(referenceTime).replace(/^✓ /, ""))}${options.matchNote ? `｜${escapeHtml(options.matchNote)}` : ""}</p>` : ""}
+      <div class="confirmation-actions">
+        <button class="confirmation-btn ${confirmation.paymentConfirmedAt ? "done" : ""}" onclick="toggleOrderConfirmation('${order.id}','payment')">${confirmationTimeLabel(confirmation.paymentConfirmedAt)}</button>
+        <button class="confirmation-btn ${confirmation.qtyConfirmed ? "done" : ""}" onclick="toggleOrderConfirmation('${order.id}','qty')">${confirmation.qtyConfirmed ? "✓ 數量已確認" : "確認數量"}</button>
+        <button class="confirmation-btn ${confirmation.amountConfirmed ? "done" : ""}" onclick="toggleOrderConfirmation('${order.id}','amount')">${confirmation.amountConfirmed ? "✓ 金額已確認" : "確認金額"}</button>
+      </div>
+      ${options.showEdit ? `<button class="secondary-btn" onclick="openBuyerOrderForm('${order.id}')">開啟這筆訂單</button>` : ""}
+    </div>
+  `;
+}
+
 function renderConfirmationCenter() {
   const box = document.getElementById("orderConfirmationCenter");
   if (!box) return;
+  const orders = db.buyerOrders
+    .filter(order => !isOrderConfirmationComplete(order))
+    .sort((a, b) => compareDisplayNames(nameOf("buyers", a.buyerId), nameOf("buyers", b.buyerId)));
+  box.innerHTML = orders.length
+    ? `<div class="confirmation-list">${orders.map(order => confirmationOrderHtml(order)).join("")}</div>`
+    : `<p class="muted">目前沒有待確認訂單。</p>`;
+  renderConfirmationArchive();
+}
 
-  const orders = [...db.buyerOrders].sort((a, b) => {
-    const aDone = Object.values(ensureOrderConfirmation(a)).every(Boolean);
-    const bDone = Object.values(ensureOrderConfirmation(b)).every(Boolean);
-    if (aDone !== bDone) return aDone ? 1 : -1;
-    return compareDisplayNames(nameOf("buyers", a.buyerId), nameOf("buyers", b.buyerId));
-  });
-
-  if (orders.length === 0) {
-    box.innerHTML = `<p class="muted">尚無購買人訂單</p>`;
+function findConfirmationMatches() {
+  const box = document.getElementById("confirmationMatchResults");
+  if (!box) return;
+  const name = document.getElementById("confirmationFindName")?.value.trim() || "";
+  const timeValue = document.getElementById("confirmationFindTime")?.value || "";
+  const qtyValue = document.getElementById("confirmationFindQty")?.value || "";
+  const amountValue = document.getElementById("confirmationFindAmount")?.value || "";
+  if (!name && !timeValue && qtyValue === "" && amountValue === "") {
+    box.innerHTML = `<p class="quick-preview-warning">請至少輸入一項收款資料。</p>`;
     return;
   }
 
-  box.innerHTML = `<div class="confirmation-list">${orders.map(order => {
+  const targetTime = timeValue ? new Date(timeValue).getTime() : null;
+  const targetQty = qtyValue === "" ? null : Number(qtyValue);
+  const targetAmount = amountValue === "" ? null : Number(amountValue);
+  const ranked = db.buyerOrders.map(order => {
     const confirmation = ensureOrderConfirmation(order);
-    const channelOrder = byId("channelOrders", order.channelOrderId);
-    const completed = Boolean(confirmation.paymentConfirmedAt && confirmation.qtyConfirmed && confirmation.amountConfirmed);
-    return `
-      <div class="confirmation-item ${completed ? "completed" : ""}">
-        <div class="confirmation-title">
-          <strong>${completed ? "✅" : "⏳"} ${escapeHtml(nameOf("buyers", order.buyerId))}</strong>
-          <span>${channelOrder ? escapeHtml(channelOrderLabel(channelOrder)) : "通路訂單不存在"}</span>
-        </div>
-        <div class="confirmation-values">
-          <span>數量：${order.qty}</span>
-          <span>金額：${money(order.amount)}</span>
-          <span>付款：${order.paid ? "已付款" : "未付款"}</span>
-        </div>
-        <div class="confirmation-actions">
-          <button class="confirmation-btn ${confirmation.paymentConfirmedAt ? "done" : ""}" onclick="toggleOrderConfirmation('${order.id}','payment')">${confirmationTimeLabel(confirmation.paymentConfirmedAt)}</button>
-          <button class="confirmation-btn ${confirmation.qtyConfirmed ? "done" : ""}" onclick="toggleOrderConfirmation('${order.id}','qty')">${confirmation.qtyConfirmed ? "✓ 數量已確認" : "確認數量"}</button>
-          <button class="confirmation-btn ${confirmation.amountConfirmed ? "done" : ""}" onclick="toggleOrderConfirmation('${order.id}','amount')">${confirmation.amountConfirmed ? "✓ 金額已確認" : "確認金額"}</button>
-        </div>
-      </div>
-    `;
-  }).join("")}</div>`;
+    const orderTime = new Date(confirmation.paymentConfirmedAt || order.createdAt || 0).getTime();
+    const timeDiff = targetTime === null || Number.isNaN(orderTime) ? Number.POSITIVE_INFINITY : Math.abs(orderTime - targetTime);
+    let score = 0;
+    if (name) {
+      const buyerName = nameOf("buyers", order.buyerId);
+      if (sameText(buyerName, name)) score += 60;
+      else if (includesText(buyerName, name)) score += 30;
+      else score -= 30;
+    }
+    if (targetQty !== null) score += Number(order.qty) === targetQty ? 25 : -10;
+    if (targetAmount !== null) score += Number(order.amount) === targetAmount ? 25 : -10;
+    const matchNote = [
+      targetQty === null ? "" : (Number(order.qty) === targetQty ? "數量相符" : "數量不同"),
+      targetAmount === null ? "" : (Number(order.amount) === targetAmount ? "金額相符" : "金額不同")
+    ].filter(Boolean).join("、");
+    return { order, score, timeDiff, matchNote };
+  }).sort((a, b) => {
+    if (targetTime !== null && a.timeDiff !== b.timeDiff) return a.timeDiff - b.timeDiff;
+    if (a.score !== b.score) return b.score - a.score;
+    return compareDisplayNames(nameOf("buyers", a.order.buyerId), nameOf("buyers", b.order.buyerId));
+  }).slice(0, 12);
+
+  box.innerHTML = ranked.length
+    ? `<div class="confirmation-match-heading">最可能的對應訂單（時間優先）</div><div class="confirmation-list">${ranked.map(item => confirmationOrderHtml(item.order, { showReferenceTime: true, showEdit: true, matchNote: item.matchNote })).join("")}</div>`
+    : `<p class="muted">找不到可能的訂單。</p>`;
+}
+
+function renderConfirmationArchive() {
+  const box = document.getElementById("confirmationArchiveList");
+  if (!box) return;
+  const q = document.getElementById("confirmationArchiveSearch")?.value.trim() || "";
+  const orders = db.buyerOrders
+    .filter(isOrderConfirmationComplete)
+    .filter(order => {
+      const confirmation = ensureOrderConfirmation(order);
+      const channelOrder = byId("channelOrders", order.channelOrderId);
+      return includesText(`${nameOf("buyers", order.buyerId)} ${channelOrder ? channelOrderLabel(channelOrder) : ""} ${order.qty} ${order.amount} ${confirmation.paymentConfirmedAt}`, q);
+    })
+    .sort((a, b) => String(ensureOrderConfirmation(b).paymentConfirmedAt).localeCompare(String(ensureOrderConfirmation(a).paymentConfirmedAt)));
+  box.innerHTML = orders.length
+    ? `<div class="confirmation-list">${orders.map(order => confirmationOrderHtml(order)).join("")}</div>`
+    : `<p class="muted">目前沒有符合的已確認封存訂單。</p>`;
 }
 
 function isChannelOrderCompletionEligible(order) {
@@ -3126,6 +3437,7 @@ function renderAll() {
   try {
     renderChannelOrders();
     renderBuyerOrders();
+    renderBuyerBundles();
     renderSearch();
     renderChannelTimeline();
     renderBackupCenter();

@@ -45,15 +45,17 @@
       </div>
     </div>
 
-    <div class="card receipt-stats-card">
-      <h2>收款與人數統計</h2>
-      <div class="receipt-summary-grid">
-        <div><strong id="statReceivedAmount">$0</strong><span>已收金額</span></div>
-        <div><strong id="statPaidBuyerCount">0</strong><span>已付款人數</span></div>
-        <div><strong id="statBuyerCount">0</strong><span>有訂單人數</span></div>
+    <details class="card receipt-stats-card home-stats-tree">
+      <summary>收款與人數統計</summary>
+      <div class="home-stats-tree-body">
+        <div class="receipt-summary-grid">
+          <div><strong id="statReceivedAmount">$0</strong><span>已收金額</span></div>
+          <div><strong id="statPaidBuyerCount">0</strong><span>已付款人數</span></div>
+          <div><strong id="statBuyerCount">0</strong><span>有訂單人數</span></div>
+        </div>
+        <div id="buyerPurchaseStats"></div>
       </div>
-      <div id="buyerPurchaseStats"></div>
-    </div>
+    </details>
 
     <div class="card">
       <h2>快速提醒</h2>
@@ -80,6 +82,17 @@
   </section>
 
   <section id="page-buyer-orders" class="page">
+    <div class="card buyer-bundle-section">
+      <div class="section-heading-row">
+        <div>
+          <h2>單人多通路訂單</h2>
+          <p class="muted">選取同一位購買人的指定訂單，另外匯集顯示。</p>
+        </div>
+        <button class="primary-btn compact-action" onclick="openBuyerBundleForm()">＋ 建立匯集訂單</button>
+      </div>
+      <input id="buyerBundleSearch" class="search-input" placeholder="搜尋購買人 / 群組名稱 / 通路" oninput="renderBuyerBundles()" />
+      <div id="buyerBundleList"></div>
+    </div>
     <div class="card">
       <h2>購買人訂單</h2>
       <button class="primary-btn" onclick="openBuyerOrderForm()">＋ 新增購買人訂單</button>
@@ -106,7 +119,7 @@
   <section id="page-settings" class="page">
     <div class="card">
       <h2>設定</h2>
-      <p class="muted">管理會重複使用的資料。V5.2</p>
+      <p class="muted">管理會重複使用的資料。V5.3</p>
     </div>
 
     <details class="card settings-tree user-guide">
@@ -139,10 +152,13 @@
           <summary>3. 快速新增購買人訂單</summary>
           <ul>
             <li>「多人同通路」：先選通路，再逐列輸入購買人、數量、金額與備註。</li>
+            <li>同一次快速新增可再加入第二、第三個通路訂單；每個通路都有獨立日期、購買人欄位與分隔線。</li>
             <li>「同一人多通路」：先選購買人，再逐列選擇不同通路。</li>
-            <li>統一價格可設定 <code>1＝200、2＝350</code>，數量改變時自動帶入金額。</li>
+            <li>每個通路區塊可各自設定 <code>1＝200、2＝350</code>；數量改變時只會套用該通路的金額。</li>
             <li>通路下拉只顯示尚未登記完成的訂單。</li>
             <li>快速新增預設為已付款，建立前可先按「預覽」。</li>
+            <li>「建立後繼續下一批」會保留尚有數量的通路並清空名單，可接著建立下一批。</li>
+            <li>購買人欄位可展開完整名單，也可保留搜尋或直接輸入新名字。</li>
           </ul>
         </details>
 
@@ -154,16 +170,19 @@
             <li>可切換付款狀態，並勾選建立賣場、下單及出貨。</li>
             <li>若姓名建議沒有被選取，系統會帶入第一位符合者並顯示警告符號。</li>
             <li>購買日期、簽售日期與賣貨便連結會跟通路訂單同步。</li>
+            <li>可在頁面下方選取同一人的指定訂單，另外建立「單人多通路訂單」與專屬賣貨便連結。</li>
           </ul>
         </details>
 
         <details>
           <summary>5. 訂單確認中心</summary>
           <ul>
-            <li>自動列出所有購買人訂單。</li>
+            <li>待確認區只列出尚未完成三項確認的訂單。</li>
             <li>分別確認付款時間、數量及金額。</li>
             <li>確認付款時間時會記錄當下時間並設為已付款。</li>
             <li>訂單金額被修改後，金額確認狀態會自動取消。</li>
+            <li>可輸入姓名、付款時間、數量與金額，由時間優先尋找可能的通路訂單。</li>
+            <li>三項確認完成後會自動移到可搜尋的確認封存區。</li>
           </ul>
         </details>
 
@@ -247,8 +266,29 @@
     <details class="card settings-tree">
       <summary>✅ 訂單確認中心</summary>
       <div class="settings-tree-body">
-        <p class="muted">自動帶入購買人訂單，逐項確認付款時間、數量與金額。</p>
-        <div id="orderConfirmationCenter"></div>
+        <details class="confirmation-section" open>
+          <summary>待確認訂單</summary>
+          <p class="muted">自動帶入購買人訂單，逐項確認付款時間、數量與金額；三項完成後會移至封存。</p>
+          <div id="orderConfirmationCenter"></div>
+        </details>
+
+        <details class="confirmation-section">
+          <summary>依收款資料尋找訂單</summary>
+          <div class="confirmation-finder-grid">
+            <input id="confirmationFindName" placeholder="購買人姓名" />
+            <input id="confirmationFindTime" type="datetime-local" aria-label="付款時間" />
+            <input id="confirmationFindQty" type="number" min="1" placeholder="數量" />
+            <input id="confirmationFindAmount" type="number" min="0" placeholder="金額" />
+          </div>
+          <button class="primary-btn" onclick="findConfirmationMatches()">尋找對應通路訂單</button>
+          <div id="confirmationMatchResults"></div>
+        </details>
+
+        <details class="confirmation-section">
+          <summary>確認封存</summary>
+          <input id="confirmationArchiveSearch" class="search-input" placeholder="搜尋購買人 / 通路 / 金額 / 時間" oninput="renderConfirmationArchive()" />
+          <div id="confirmationArchiveList"></div>
+        </details>
       </div>
     </details>
 
