@@ -1295,6 +1295,55 @@ button {
   border-top: 1px solid var(--line);
 }
 
+.home-copy-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.home-copy-setting-field {
+  display: grid;
+  gap: 7px;
+}
+
+.home-copy-setting-field > span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.home-copy-setting-field input {
+  width: 100%;
+  margin: 0;
+}
+
+.home-copy-setting-wide {
+  grid-column: 1 / -1;
+}
+
+.home-copy-settings-actions {
+  margin-top: 14px;
+}
+
+.home-copy-settings-status {
+  min-height: 20px;
+  margin: 10px 0 0;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+@media (max-width: 640px) {
+  .home-copy-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-copy-setting-wide {
+    grid-column: auto;
+  }
+}
+
 .home-stats-tree {
   padding: 0;
   overflow: hidden;

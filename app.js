@@ -17,6 +17,17 @@ function uid(prefix) {
 // 系統初始化資料
 //
 
+const DEFAULT_HOME_HERO = {
+  eyebrow: "PERSONAL FANSIGN WORKSPACE",
+  message: HOME_GREETING_MESSAGE,
+  greetings: {
+    lateNight: "還沒休息嗎？",
+    morning: "Good morning.",
+    afternoon: "Good afternoon.",
+    evening: "Good evening."
+  }
+};
+
 const defaultData = {
   artists: [
     { id: "artist_1", name: "Yuju", note: "", createdAt: now(), updatedAt: now() },
@@ -38,7 +49,8 @@ const defaultData = {
   channelOrders: [],
   buyerOrders: [],
   buyerBundles: [],
-  completionGroups: []
+  completionGroups: [],
+  homeHero: structuredClone(DEFAULT_HOME_HERO)
 };
 
 let db = loadData();
@@ -48,6 +60,17 @@ function normalizeLoadedData(data) {
   data.appName = data.appName || APP_NAME;
   data.appVersion = data.appVersion || APP_VERSION;
   data.schema = Number(data.schema || 1);
+
+  data.homeHero = {
+    eyebrow: String(data.homeHero?.eyebrow || DEFAULT_HOME_HERO.eyebrow),
+    message: String(data.homeHero?.message || DEFAULT_HOME_HERO.message),
+    greetings: {
+      lateNight: String(data.homeHero?.greetings?.lateNight || DEFAULT_HOME_HERO.greetings.lateNight),
+      morning: String(data.homeHero?.greetings?.morning || DEFAULT_HOME_HERO.greetings.morning),
+      afternoon: String(data.homeHero?.greetings?.afternoon || DEFAULT_HOME_HERO.greetings.afternoon),
+      evening: String(data.homeHero?.greetings?.evening || DEFAULT_HOME_HERO.greetings.evening)
+    }
+  };
 
   data.artists = (data.artists || []).map(item => ({
     id: item.id || uid("artist"),
@@ -2896,25 +2919,29 @@ function renderHome() {
   const currentDate = new Date();
   const today = currentDate.toISOString().slice(0, 10);
   const currentMonth = today.slice(0, 7);
+  const homeHero = db.homeHero || DEFAULT_HOME_HERO;
+  const homeGreetings = homeHero.greetings || DEFAULT_HOME_HERO.greetings;
 
   const unpaidOrders = db.buyerOrders.filter(o => !o.paid);
   const totalAmount = db.buyerOrders.reduce((sum, o) => sum + Number(o.amount || 0), 0);
   const unpaidAmount = unpaidOrders.reduce((sum, o) => sum + Number(o.amount || 0), 0);
   const greeting = currentDate.getHours() < 5
-    ? "還沒休息嗎？"
+    ? homeGreetings.lateNight
     : currentDate.getHours() < 12
-      ? "Good morning."
+      ? homeGreetings.morning
       : currentDate.getHours() < 18
-        ? "Good afternoon."
-        : "Good evening.";
+        ? homeGreetings.afternoon
+        : homeGreetings.evening;
 
+  const eyebrowEl = document.getElementById("homeEyebrow");
   const greetingEl = document.getElementById("homeGreeting");
   const greetingMessageEl = document.getElementById("homeGreetingMessage");
   const dateEl = document.getElementById("homeDate");
   const summaryEl = document.getElementById("homeSummary");
   const versionEl = document.getElementById("appVersionLabel");
+  if (eyebrowEl) eyebrowEl.textContent = homeHero.eyebrow;
   if (greetingEl) greetingEl.textContent = greeting;
-  if (greetingMessageEl) greetingMessageEl.textContent = HOME_GREETING_MESSAGE;
+  if (greetingMessageEl) greetingMessageEl.textContent = homeHero.message;
   if (dateEl) {
     dateEl.textContent = currentDate.toLocaleDateString("zh-TW", {
       month: "long",
@@ -3442,9 +3469,57 @@ function clearAll() {
   renderAll();
 }
 
+function renderHomeHeroSettings() {
+  const homeHero = db.homeHero || DEFAULT_HOME_HERO;
+  const greetings = homeHero.greetings || DEFAULT_HOME_HERO.greetings;
+  const values = {
+    homeEyebrowInput: homeHero.eyebrow,
+    homeGreetingLateNightInput: greetings.lateNight,
+    homeGreetingMorningInput: greetings.morning,
+    homeGreetingAfternoonInput: greetings.afternoon,
+    homeGreetingEveningInput: greetings.evening,
+    homeGreetingMessageInput: homeHero.message
+  };
+
+  Object.entries(values).forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (input) input.value = value;
+  });
+}
+
+function saveHomeHeroSettings() {
+  const readValue = (id, fallback) => document.getElementById(id)?.value.trim() || fallback;
+  db.homeHero = {
+    eyebrow: readValue("homeEyebrowInput", DEFAULT_HOME_HERO.eyebrow),
+    message: readValue("homeGreetingMessageInput", DEFAULT_HOME_HERO.message),
+    greetings: {
+      lateNight: readValue("homeGreetingLateNightInput", DEFAULT_HOME_HERO.greetings.lateNight),
+      morning: readValue("homeGreetingMorningInput", DEFAULT_HOME_HERO.greetings.morning),
+      afternoon: readValue("homeGreetingAfternoonInput", DEFAULT_HOME_HERO.greetings.afternoon),
+      evening: readValue("homeGreetingEveningInput", DEFAULT_HOME_HERO.greetings.evening)
+    }
+  };
+  saveData();
+  renderHome();
+  renderHomeHeroSettings();
+  const status = document.getElementById("homeCopySettingsStatus");
+  if (status) status.textContent = "首頁文字已更新，可回首頁查看。";
+}
+
+function resetHomeHeroSettings() {
+  if (!confirm("確定要把首頁文字恢復成預設內容嗎？")) return;
+  db.homeHero = structuredClone(DEFAULT_HOME_HERO);
+  saveData();
+  renderHome();
+  renderHomeHeroSettings();
+  const status = document.getElementById("homeCopySettingsStatus");
+  if (status) status.textContent = "首頁文字已恢復預設。";
+}
+
 function renderAll() {
   try {
     renderHome();
+    renderHomeHeroSettings();
   } catch (error) {
     console.warn("renderHome error", error);
   }

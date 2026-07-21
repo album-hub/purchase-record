@@ -38,7 +38,7 @@
   <section id="page-home" class="page active">
     <section class="home-hero" aria-labelledby="homeGreeting">
       <div class="hero-copy">
-        <span class="hero-eyebrow">PERSONAL FANSIGN WORKSPACE</span>
+        <span id="homeEyebrow" class="hero-eyebrow">PERSONAL FANSIGN WORKSPACE</span>
         <h2 id="homeGreeting">Good evening.</h2>
         <p id="homeGreetingMessage">今天也一起把每筆進度整理好。</p>
         <div class="hero-meta">
@@ -272,6 +272,44 @@
             <li>「清空全部資料」無法復原，操作前務必確認已有備份。</li>
           </ul>
         </details>
+      </div>
+    </details>
+
+    <details class="card settings-tree home-copy-settings">
+      <summary>✏️ 首頁文字設定</summary>
+      <div class="settings-tree-body">
+        <p class="muted">修改後會保存在目前網站資料中，日期與訂單統計仍會自動更新。</p>
+        <div class="home-copy-settings-grid">
+          <label class="home-copy-setting-field home-copy-setting-wide">
+            <span>上方小標題</span>
+            <input id="homeEyebrowInput" type="text" placeholder="PERSONAL FANSIGN WORKSPACE" />
+          </label>
+          <label class="home-copy-setting-field">
+            <span>凌晨問候語（00:00–04:59）</span>
+            <input id="homeGreetingLateNightInput" type="text" placeholder="還沒休息嗎？" />
+          </label>
+          <label class="home-copy-setting-field">
+            <span>上午問候語（05:00–11:59）</span>
+            <input id="homeGreetingMorningInput" type="text" placeholder="Good morning." />
+          </label>
+          <label class="home-copy-setting-field">
+            <span>下午問候語（12:00–17:59）</span>
+            <input id="homeGreetingAfternoonInput" type="text" placeholder="Good afternoon." />
+          </label>
+          <label class="home-copy-setting-field">
+            <span>晚上問候語（18:00–23:59）</span>
+            <input id="homeGreetingEveningInput" type="text" placeholder="Good evening." />
+          </label>
+          <label class="home-copy-setting-field home-copy-setting-wide">
+            <span>問候語下方標語</span>
+            <input id="homeGreetingMessageInput" type="text" placeholder="今天也一起把每筆進度整理好。" />
+          </label>
+        </div>
+        <div class="row home-copy-settings-actions">
+          <button class="primary-btn" type="button" onclick="saveHomeHeroSettings()">儲存首頁文字</button>
+          <button class="secondary-btn" type="button" onclick="resetHomeHeroSettings()">恢復預設</button>
+        </div>
+        <p id="homeCopySettingsStatus" class="home-copy-settings-status" role="status" aria-live="polite"></p>
       </div>
     </details>
 
