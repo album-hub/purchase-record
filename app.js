@@ -55,6 +55,7 @@ const defaultData = {
 
 let db = loadData();
 let buyerOrderFilter = "active";
+let buyerDeliveryStageFilter = "market";
 
 function normalizeLoadedData(data) {
   data.appName = data.appName || APP_NAME;
@@ -2436,6 +2437,91 @@ function renderDeliveryChecklist(order, compact = false) {
   `;
 }
 
+function buyerDeliveryStage(order) {
+  const state = deliveryState(order);
+  if (!state.market) return "market";
+  if (!state.ordered) return "ordered";
+  if (!state.shipped) return "shipped";
+  return "complete";
+}
+
+function setBuyerDeliveryStageFilter(stage) {
+  if (!["market", "ordered", "shipped"].includes(stage)) return;
+  buyerDeliveryStageFilter = stage;
+  renderBuyerDeliveryStage();
+}
+
+function renderBuyerDeliveryStage() {
+  const box = document.getElementById("buyerDeliveryStageList");
+  if (!box) return;
+
+  const stageLabels = {
+    market: "建立賣場",
+    ordered: "下單",
+    shipped: "出貨"
+  };
+  const stageButtonIds = {
+    market: "deliveryStageMarket",
+    ordered: "deliveryStageOrdered",
+    shipped: "deliveryStageShipped"
+  };
+  const counts = { market: 0, ordered: 0, shipped: 0 };
+
+  db.buyerOrders.forEach(order => {
+    const stage = buyerDeliveryStage(order);
+    if (Object.prototype.hasOwnProperty.call(counts, stage)) counts[stage] += 1;
+  });
+
+  const summaryCount = document.getElementById("deliveryStageSummaryCount");
+  if (summaryCount) {
+    const pendingCount = counts.market + counts.ordered + counts.shipped;
+    summaryCount.textContent = `待處理 ${pendingCount} 筆`;
+  }
+
+  Object.entries(stageButtonIds).forEach(([stage, id]) => {
+    const button = document.getElementById(id);
+    if (!button) return;
+    button.classList.toggle("active", stage === buyerDeliveryStageFilter);
+    button.textContent = `${stageLabels[stage]} ${counts[stage]}`;
+  });
+
+  const orders = db.buyerOrders
+    .filter(order => buyerDeliveryStage(order) === buyerDeliveryStageFilter)
+    .sort((a, b) => {
+      const buyerCompare = compareDisplayNames(nameOf("buyers", a.buyerId), nameOf("buyers", b.buyerId));
+      if (buyerCompare !== 0) return buyerCompare;
+      const aChannelOrder = byId("channelOrders", a.channelOrderId);
+      const bChannelOrder = byId("channelOrders", b.channelOrderId);
+      return compareDisplayNames(
+        aChannelOrder ? channelOrderLabel(aChannelOrder) : "",
+        bChannelOrder ? channelOrderLabel(bChannelOrder) : ""
+      );
+    });
+
+  if (orders.length === 0) {
+    box.innerHTML = `<p class="muted delivery-stage-empty">目前沒有等待「${stageLabels[buyerDeliveryStageFilter]}」的訂單。</p>`;
+    return;
+  }
+
+  box.innerHTML = `
+    <div class="delivery-stage-list">
+      ${orders.map(order => {
+        const channelOrder = byId("channelOrders", order.channelOrderId);
+        return `
+          <div class="delivery-stage-order">
+            <div class="delivery-stage-order-info">
+              <strong>👤 ${escapeHtml(nameOf("buyers", order.buyerId))}</strong>
+              <span>${channelOrder ? escapeHtml(channelOrderLabel(channelOrder)) : "通路訂單不存在"}</span>
+              <small>${order.qty} 張｜${money(order.amount)}</small>
+            </div>
+            ${renderDeliveryChecklist(order)}
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
 function togglePaid(id) {
   const order = byId("buyerOrders", id);
   if (!order) return;
@@ -3666,6 +3752,7 @@ function renderAll() {
     renderChannelOrders();
     renderBuyerOrders();
     renderBuyerBundles();
+    renderBuyerDeliveryStage();
     renderSearch();
     renderChannelTimeline();
     renderBackupCenter();

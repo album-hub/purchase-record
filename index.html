@@ -160,6 +160,23 @@
       <input id="buyerBundleSearch" class="search-input" placeholder="搜尋購買人 / 群組名稱 / 通路" oninput="renderBuyerBundles()" />
       <div id="buyerBundleList"></div>
     </div>
+    <details class="card buyer-delivery-stage-section">
+      <summary class="delivery-stage-summary">
+        <span>
+          <strong>🚚 配送進度專區</strong>
+          <small>依照下一個尚未完成的配送步驟分類</small>
+        </span>
+        <span id="deliveryStageSummaryCount" class="tree-node-count">待處理 0 筆</span>
+      </summary>
+      <div class="delivery-stage-body">
+        <div class="filter-row delivery-stage-tabs">
+          <button id="deliveryStageMarket" class="filter-btn active" onclick="setBuyerDeliveryStageFilter('market')">建立賣場</button>
+          <button id="deliveryStageOrdered" class="filter-btn" onclick="setBuyerDeliveryStageFilter('ordered')">下單</button>
+          <button id="deliveryStageShipped" class="filter-btn" onclick="setBuyerDeliveryStageFilter('shipped')">出貨</button>
+        </div>
+        <div id="buyerDeliveryStageList"></div>
+      </div>
+    </details>
     <div class="card">
       <h2>購買人訂單</h2>
       <button class="primary-btn" onclick="openBuyerOrderForm()">＋ 新增購買人訂單</button>

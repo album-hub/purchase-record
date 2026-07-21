@@ -984,6 +984,106 @@ html[data-theme="sunrise"] .exclusive-channel-results .muted {
   border-color: rgba(52, 199, 89, 0.35);
 }
 
+.buyer-delivery-stage-section {
+  overflow: hidden;
+}
+
+.delivery-stage-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.delivery-stage-summary::-webkit-details-marker {
+  display: none;
+}
+
+.delivery-stage-summary > span:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.delivery-stage-summary strong {
+  font-size: 18px;
+}
+
+.delivery-stage-summary small {
+  color: var(--sub);
+  font-weight: 600;
+}
+
+.delivery-stage-summary::before {
+  content: "▶";
+  color: var(--blue);
+  transition: transform .18s ease;
+}
+
+.buyer-delivery-stage-section[open] .delivery-stage-summary::before {
+  transform: rotate(90deg);
+}
+
+.delivery-stage-body {
+  padding-top: 12px;
+}
+
+.delivery-stage-tabs {
+  margin-bottom: 12px;
+}
+
+.delivery-stage-list {
+  display: grid;
+  gap: 10px;
+}
+
+.delivery-stage-order {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #f7f7f9;
+}
+
+.delivery-stage-order-info {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.delivery-stage-order-info strong {
+  color: #17191d;
+}
+
+.delivery-stage-order-info span,
+.delivery-stage-order-info small {
+  color: #4f5661;
+  overflow-wrap: anywhere;
+}
+
+.delivery-stage-order .delivery-checklist {
+  justify-content: flex-end;
+  margin: 0;
+}
+
+.delivery-stage-empty {
+  margin: 14px 2px 2px;
+}
+
+@media (max-width: 720px) {
+  .delivery-stage-order {
+    grid-template-columns: 1fr;
+  }
+
+  .delivery-stage-order .delivery-checklist {
+    justify-content: flex-start;
+  }
+}
+
 html[data-theme="sunrise"] .delivery-step-btn {
   color: #f5d9c7;
   border-color: rgba(231, 189, 119, .3);
@@ -994,6 +1094,20 @@ html[data-theme="sunrise"] .delivery-step-btn.done {
   color: #b9edcd;
   border-color: rgba(92, 194, 136, .46);
   background: rgba(61, 151, 101, .24);
+}
+
+html[data-theme="sunrise"] .delivery-stage-order {
+  border-color: rgba(231, 189, 119, .24);
+  background: rgba(22, 15, 14, .88);
+}
+
+html[data-theme="sunrise"] .delivery-stage-order-info strong {
+  color: #ffe3ae;
+}
+
+html[data-theme="sunrise"] .delivery-stage-order-info span,
+html[data-theme="sunrise"] .delivery-stage-order-info small {
+  color: #e4c8b8;
 }
 
 .alias-text {
