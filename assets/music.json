@@ -1,1 +1,91 @@
-[]
+[
+  {
+    "id": "GFRIEND_001",
+    "title": "Fallin' Light (天使の梯子)",
+    "artist": "GFRIEND",
+    "album": "Fallin' Light",
+    "file": "music/[MV] GFRIEND - Fallin' Light (天使の梯子).mp3",
+    "cover": "cover/fallin'light-1.jpg"
+  },
+  {
+    "id": "GFRIEND_002",
+    "title": "Fingertip",
+    "artist": "GFRIEND",
+    "album": "The Awakening",
+    "file": "music/FINGERTIP.mp3",
+    "cover": "cover/fingertip-2.jpg"
+  },
+  {
+    "id": "GFRIEND_003",
+    "title": "Mago",
+    "artist": "GFRIEND",
+    "album": "回:Walpurgis Night",
+    "file": "music/MAGO.mp3",
+    "cover": "cover/mago-stage-1.jpg"
+  },
+  {
+    "id": "GFRIEND_004",
+    "title": "Rainbow",
+    "artist": "GFRIEND",
+    "album": "Rainbow",
+    "file": "music/RAINBOW.mp3",
+    "cover": "cover/rainbow-1.jpg"
+  },
+  {
+    "id": "GFRIEND_005",
+    "title": "귀를 기울이면 (LOVE WHISPER)",
+    "artist": "GFRIEND",
+    "album": "PARALLEL",
+    "file": "music/귀를 기울이면 (LOVE WHISPER).mp3",
+    "cover": "cover/love-whisper-2.jpg"
+  },
+  {
+    "id": "GFRIEND_006",
+    "title": "너 그리고 나 (NAVILLERA)",
+    "artist": "GFRIEND",
+    "album": "LOL",
+    "file": "music/너 그리고 나 (NAVILLERA).mp3",
+    "cover": "cover/navillera-1.jpg"
+  },
+  {
+    "id": "GFRIEND_007",
+    "title": "밤 (Time for the moon night)",
+    "artist": "GFRIEND",
+    "album": "Time For The Moon Night",
+    "file": "music/밤 (Time for the moon night).mp3",
+    "cover": "cover/time-for-the-moonnight-1.jpg"
+  },
+  {
+    "id": "GFRIEND_008",
+    "title": "시간을 달려서 (Rough)",
+    "artist": "GFRIEND",
+    "album": "SnowFlake",
+    "file": "music/시간을 달려서 (Rough).mp3",
+    "cover": "cover/rough-1.jpg"
+  },
+  {
+    "id": "GFRIEND_009",
+    "title": "여름여름해 (Sunny Summer)",
+    "artist": "GFRIEND",
+    "album": "Sunny Summer",
+    "file": "music/여름여름해 (Sunny Summer).mp3",
+    "cover": "cover/sunny-summer-1.jpg",
+    "disabled": true
+  },
+  {
+    "id": "GFRIEND_010",
+    "title": "오늘부터 우리는 (Me Gustas tu)",
+    "artist": "GFRIEND",
+    "album": "Flower Bud",
+    "file": "music/오늘부터 우리는 (Me Gustas tu).mp3",
+    "cover": "cover/me-gustas-tu-1.jpg"
+  },
+  {
+    "id": "GFRIEND_011",
+    "title": "지금 만나러 갑니다 (Eclipse)",
+    "artist": "GFRIEND",
+    "album": "回:LABYRINTH",
+    "file": "music/지금 만나러 갑니다 (Eclipse).mp3",
+    "cover": "cover/crossroads-1.jpg"
+  }
+]
