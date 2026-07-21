@@ -179,6 +179,13 @@
     <div class="card">
       <h2>搜尋</h2>
       <input id="globalSearch" class="search-input" placeholder="搜尋購買人、藝人、通路、批次" oninput="renderSearch()" />
+      <label class="exclusive-channel-search">
+        <input id="exclusiveChannelOnly" type="checkbox" onchange="renderSearch()" />
+        <span>
+          <strong>僅顯示只買這個通路的購買人</strong>
+          <small>若購買人另有其他通路的訂單，就不會出現在結果中。</small>
+        </span>
+      </label>
     </div>
     <div id="searchResults"></div>
   </section>
@@ -494,8 +501,12 @@
     <details class="card settings-tree">
       <summary>💾 匯出 / 匯入 JSON</summary>
       <div class="settings-tree-body">
-      <p class="muted">這是第二層保險；平常用上面的備份中心即可。</p>
-      <button class="secondary-btn" onclick="exportBackup()">產生 JSON 備份</button>
+      <p class="muted">可直接輸出 JSON 代碼，或下載成 JSON 備份檔案保存。</p>
+      <div class="row backup-export-actions">
+        <button class="secondary-btn" onclick="exportBackup()">輸出 JSON 代碼</button>
+        <button class="primary-btn" onclick="downloadBackupFile()">下載 JSON 備份檔案</button>
+      </div>
+      <p id="backupExportStatus" class="backup-export-status" role="status" aria-live="polite"></p>
       <textarea id="backupBox" placeholder="備份內容會出現在這裡，也可以貼上備份資料"></textarea>
       <button class="primary-btn" onclick="importBackup()">從 JSON 還原</button>
       <button class="danger-btn" onclick="clearAll()">清空全部資料</button>

@@ -1019,6 +1019,19 @@ function channelOrderLabel(order) {
   return `${nameOf("artists", order.artistId)}｜${channelDisplayName(order.channelId)}｜${nameOf("albumTypes", order.albumTypeId)}｜${order.batch}${order.orderStartDate || order.orderEndDate ? "｜下單 " + orderPeriodText(order) : ""}${order.fansignDate ? "｜簽售 " + order.fansignDate : ""}${order.fansignTime ? " " + order.fansignTime : ""}`;
 }
 
+function channelOrderIdentityHtml(order) {
+  if (!order) {
+    return `<div class="channel-order-identity missing"><strong>⚠️ 通路訂單不存在</strong></div>`;
+  }
+
+  return `
+    <div class="channel-order-identity">
+      <strong>🏪 通路：${escapeHtml(channelDisplayName(order.channelId))}</strong>
+      <span>🎤 ${escapeHtml(nameOf("artists", order.artistId))}｜📦 ${escapeHtml(order.batch || "未設定批次")}｜💿 ${escapeHtml(nameOf("albumTypes", order.albumTypeId))}</span>
+    </div>
+  `;
+}
+
 function channelOrderShort(order) {
   return {
     artist: nameOf("artists", order.artistId),
@@ -2562,8 +2575,8 @@ function renderBuyerBundleOrderChoices() {
     return `
       <label class="buyer-bundle-choice ${alreadyUsed ? "disabled" : ""}">
         <input type="checkbox" name="buyerBundleOrder" value="${order.id}" ${alreadyUsed ? "disabled" : ""}>
-        <span>
-          <strong>${channelOrder ? escapeHtml(channelOrderLabel(channelOrder)) : "通路訂單不存在"}</strong>
+        <span class="buyer-bundle-choice-content">
+          ${channelOrderIdentityHtml(channelOrder)}
           <small>${order.qty} 張｜${money(order.amount)}${alreadyUsed ? "｜已加入其他匯集訂單" : ""}</small>
         </span>
       </label>
@@ -3058,6 +3071,7 @@ function renderUpcomingFansigns() {
 function renderSearch() {
   const box = document.getElementById("searchResults");
   const input = document.getElementById("globalSearch");
+  const exclusiveChannelOnly = document.getElementById("exclusiveChannelOnly")?.checked;
   if (!box || !input) return;
 
   const q = input.value.trim();
@@ -3065,6 +3079,99 @@ function renderSearch() {
 
   if (!q) {
     box.innerHTML = `<div class="card"><p class="muted">輸入關鍵字開始搜尋</p></div>`;
+    return;
+  }
+
+  if (exclusiveChannelOnly) {
+    const matchedChannels = db.channels
+      .filter(channel => includesText(`${channel.name || ""} ${channel.alias || ""}`, q))
+      .sort((a, b) => compareDisplayNames(a.name, b.name));
+
+    if (matchedChannels.length === 0) {
+      box.innerHTML = `
+        <div class="card">
+          <p class="muted">找不到符合「${escapeHtml(q)}」的通路，請輸入通路名稱或別稱。</p>
+        </div>
+      `;
+      return;
+    }
+
+    const matchedChannelIds = new Set(matchedChannels.map(channel => channel.id));
+    const ordersByBuyer = new Map();
+    const batchPositions = new Map(db.batches.map((batch, index) => [normalizeText(batch.name), index]));
+    const albumTypePositions = new Map(db.albumTypes.map((type, index) => [type.id, index]));
+
+    db.buyerOrders.forEach(order => {
+      if (!order.buyerId) return;
+      if (!ordersByBuyer.has(order.buyerId)) ordersByBuyer.set(order.buyerId, []);
+      ordersByBuyer.get(order.buyerId).push(order);
+    });
+
+    const exclusiveBuyers = [...ordersByBuyer.entries()]
+      .map(([buyerId, orders]) => {
+        const matchedOrders = orders.filter(order => {
+          const channelOrder = byId("channelOrders", order.channelOrderId);
+          return channelOrder && matchedChannelIds.has(channelOrder.channelId);
+        });
+        const hasOtherChannelOrder = orders.some(order => {
+          const channelOrder = byId("channelOrders", order.channelOrderId);
+          return !channelOrder || !matchedChannelIds.has(channelOrder.channelId);
+        });
+
+        if (matchedOrders.length === 0 || hasOtherChannelOrder) return null;
+
+        return {
+          buyerId,
+          name: nameOf("buyers", buyerId),
+          orderCount: matchedOrders.length,
+          qty: matchedOrders.reduce((sum, order) => sum + Number(order.qty || 0), 0),
+          amount: matchedOrders.reduce((sum, order) => sum + Number(order.amount || 0), 0),
+          batches: [...new Set(matchedOrders.map(order => {
+            const channelOrder = byId("channelOrders", order.channelOrderId);
+            return String(channelOrder?.batch || "未設定批次").trim();
+          }).filter(Boolean))].sort((a, b) => {
+            const aPosition = batchPositions.get(normalizeText(a)) ?? Number.MAX_SAFE_INTEGER;
+            const bPosition = batchPositions.get(normalizeText(b)) ?? Number.MAX_SAFE_INTEGER;
+            return aPosition - bPosition || compareDisplayNames(a, b);
+          }),
+          albumTypes: [...new Map(matchedOrders.map(order => {
+            const channelOrder = byId("channelOrders", order.channelOrderId);
+            const albumTypeId = channelOrder?.albumTypeId || "";
+            return [albumTypeId || `missing_${order.id}`, {
+              id: albumTypeId,
+              name: albumTypeId ? nameOf("albumTypes", albumTypeId) : "未設定專輯類型"
+            }];
+          })).values()].sort((a, b) => {
+            const aPosition = albumTypePositions.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+            const bPosition = albumTypePositions.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+            return aPosition - bPosition || compareDisplayNames(a.name, b.name);
+          })
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => compareDisplayNames(a.name, b.name));
+
+    box.innerHTML = `
+      <div class="card exclusive-channel-results">
+        <div class="exclusive-channel-summary">
+          <div>
+            <span class="badge blue">僅此通路</span>
+            <strong>${matchedChannels.map(channel => escapeHtml(channelDisplayName(channel.id))).join("、")}</strong>
+          </div>
+          <span class="muted">符合 ${exclusiveBuyers.length} 人</span>
+        </div>
+        ${exclusiveBuyers.length ? exclusiveBuyers.map(item => `
+          <div class="exclusive-channel-buyer">
+            <div class="exclusive-channel-buyer-main">
+              <strong>👤 ${escapeHtml(item.name)}</strong>
+              <small>📦 批次：${item.batches.map(batch => escapeHtml(batch)).join("、")}</small>
+              <small>💿 專輯類型：${item.albumTypes.map(type => escapeHtml(type.name)).join("、")}</small>
+            </div>
+            <span>${item.orderCount} 筆｜${item.qty} 張｜${money(item.amount)}</span>
+          </div>
+        `).join("") : `<p class="muted">目前沒有只在這個通路有訂單的購買人。</p>`}
+      </div>
+    `;
     return;
   }
 
@@ -3312,7 +3419,7 @@ function openCompletionAssignmentPrompt() {
   openModal("⚠️ 有完成訂單尚未分類", `
     <p class="muted">以下通路訂單已登記完成且全部出貨，請選擇要放入的完成群組。</p>
     <div class="completion-selector completion-prompt-list">
-      ${eligible.map(order => `<label><input type="checkbox" name="completionPromptOrder" value="${order.id}" checked> <span>${escapeHtml(channelOrderLabel(order))}</span></label>`).join("")}
+      ${eligible.map(order => `<label><input type="checkbox" name="completionPromptOrder" value="${order.id}" checked> <span>${channelOrderIdentityHtml(order)}</span></label>`).join("")}
     </div>
     <div class="form-field">
       <label>放入群組</label>
@@ -3414,7 +3521,7 @@ function renderCompletionCenter() {
 
   eligibleBox.innerHTML = eligible.length
     ? `<div class="completion-selector"><strong>可加入完成群組</strong>${eligible.map(order => `
-        <label><input type="checkbox" name="completionOrder" value="${order.id}"> <span>${escapeHtml(channelOrderLabel(order))}</span></label>
+        <label><input type="checkbox" name="completionOrder" value="${order.id}"> <span>${channelOrderIdentityHtml(order)}</span></label>
       `).join("")}</div>`
     : `<p class="muted">目前沒有「登記完成且全部出貨」的通路訂單。</p>`;
 
@@ -3423,10 +3530,12 @@ function renderCompletionCenter() {
     <div class="completion-groups">
       ${groups.map(group => {
         const orders = (group.channelOrderIds || []).map(id => byId("channelOrders", id)).filter(Boolean).sort((a, b) => compareDisplayNames(channelOrderLabel(a), channelOrderLabel(b)));
+        const channelNames = [...new Set(orders.map(order => channelDisplayName(order.channelId)))];
+        const channelSummary = channelNames.length ? `｜通路：${channelNames.join("、")}` : "";
         return `<details class="completion-tree-group">
-          <summary>🏁 ${escapeHtml(group.name)} <span>${orders.length} 筆</span></summary>
+          <summary>🏁 ${escapeHtml(group.name)}${escapeHtml(channelSummary)} <span>${orders.length} 筆</span></summary>
           <div class="completion-tree-body">
-            ${orders.length ? orders.map(order => `<div class="completion-order-row"><span>${escapeHtml(channelOrderLabel(order))}</span><small>總數 ${order.totalQty}｜已登記 ${registeredQty(order.id)}</small></div>`).join("") : `<p class="muted">群組中的通路訂單已不存在</p>`}
+            ${orders.length ? orders.map(order => `<div class="completion-order-row">${channelOrderIdentityHtml(order)}<small>總數 ${order.totalQty}｜已登記 ${registeredQty(order.id)}</small></div>`).join("") : `<p class="muted">群組中的通路訂單已不存在</p>`}
             <button class="danger-btn" onclick="deleteCompletionGroup('${group.id}')">刪除這個群組</button>
           </div>
         </details>`;
@@ -3441,6 +3550,25 @@ function exportBackup() {
   if (box) box.value = item.data;
   renderBackupCenter();
   alert(`JSON 備份已產生，並已存入備份中心：${item.name}`);
+}
+
+function downloadBackupFile() {
+  const item = createBackup("JSON 檔案備份", "manual");
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const filename = `fansign-manager-backup-${timestamp}.json`;
+  const blob = new Blob([item.data], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  renderBackupCenter();
+
+  const status = document.getElementById("backupExportStatus");
+  if (status) status.textContent = `已下載備份檔案：${filename}`;
 }
 
 function importBackup() {
