@@ -2614,9 +2614,12 @@ function buyerBundleOrders(bundle) {
 }
 
 function openBuyerBundleForm() {
-  const buyerIds = [...new Set(db.buyerOrders.map(order => order.buyerId).filter(Boolean))]
+  const buyerIds = [...new Set(db.buyerOrders
+    .filter(order => !isBuyerOrderArchived(order))
+    .map(order => order.buyerId)
+    .filter(Boolean))]
     .sort((a, b) => compareDisplayNames(nameOf("buyers", a), nameOf("buyers", b)));
-  if (buyerIds.length === 0) return alert("目前沒有可匯集的購買人訂單");
+  if (buyerIds.length === 0) return alert("目前沒有尚未封存、可供匯集的購買人訂單");
 
   openModal("建立單人多通路訂單", `
     <div class="form-field">
@@ -2637,22 +2640,19 @@ function openBuyerBundleForm() {
 }
 
 function handleBuyerBundleBuyerChange() {
-  const buyerId = document.getElementById("buyerBundleBuyerId")?.value || "";
   const nameInput = document.getElementById("buyerBundleName");
-  if (nameInput) nameInput.value = `${nameOf("buyers", buyerId)} 多通路訂單`;
+  if (nameInput) nameInput.value = "";
   renderBuyerBundleOrderChoices();
 }
 
 function renderBuyerBundleOrderChoices() {
   const buyerId = document.getElementById("buyerBundleBuyerId")?.value || "";
   const box = document.getElementById("buyerBundleOrderChoices");
-  const nameInput = document.getElementById("buyerBundleName");
   if (!box) return;
-  if (nameInput && !nameInput.value.trim()) nameInput.value = `${nameOf("buyers", buyerId)} 多通路訂單`;
 
   const usedIds = new Set((db.buyerBundles || []).flatMap(bundle => bundle.buyerOrderIds || []));
   const orders = db.buyerOrders
-    .filter(order => order.buyerId === buyerId)
+    .filter(order => order.buyerId === buyerId && !isBuyerOrderArchived(order))
     .sort((a, b) => compareDisplayNames(buyerOrderSearchText(a), buyerOrderSearchText(b)));
 
   box.innerHTML = orders.length ? orders.map(order => {
@@ -2667,15 +2667,21 @@ function renderBuyerBundleOrderChoices() {
         </span>
       </label>
     `;
-  }).join("") : `<p class="muted">這位購買人目前沒有訂單。</p>`;
+  }).join("") : `<p class="muted">這位購買人目前沒有尚未封存、可供選擇的訂單。</p>`;
 }
 
 function createBuyerBundle() {
   const buyerId = document.getElementById("buyerBundleBuyerId")?.value || "";
-  const name = document.getElementById("buyerBundleName")?.value.trim() || `${nameOf("buyers", buyerId)} 多通路訂單`;
+  const name = document.getElementById("buyerBundleName")?.value.trim() || "";
   const buyerOrderIds = [...document.querySelectorAll("input[name='buyerBundleOrder']:checked")].map(input => input.value);
   const orders = buyerOrderIds.map(orderId => byId("buyerOrders", orderId)).filter(Boolean);
   const distinctChannels = new Set(orders.map(order => order.channelOrderId));
+
+  if (!name) {
+    alert("請輸入匯集訂單名稱");
+    document.getElementById("buyerBundleName")?.focus();
+    return;
+  }
 
   if (!buyerId || orders.length < 2 || distinctChannels.size < 2) {
     alert("請選擇同一位購買人的至少兩筆不同通路訂單");
